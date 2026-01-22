@@ -104,8 +104,8 @@ async def show_settings(message: Message):
 
 🆔 ID: <code>{message.from_user.id}</code>
 👤 Ism: {message.from_user.full_name}
-📧 Username: @{message.from_user.username or 'yo\'q'}
-📅 Ro'yxatdan o'tgan: {user.get('registered_at', 'Noma\'lum') if user else 'Noma\'lum'}
+📧 Username: @{message.from_user.username or "yo'q"}
+📅 Ro'yxatdan o'tgan: {user.get('registered_at', "Noma'lum") if user else "Noma'lum"}
 
 Sozlamalarni o'zgartirish uchun admin bilan bog'laning.
 """
