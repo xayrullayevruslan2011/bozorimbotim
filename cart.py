@@ -345,7 +345,7 @@ async def notify_admin_new_order(bot: Bot, order_id: int, user, data: dict):
 
 📦 <b>Mahsulotlar:</b>
 """
-    
+    text += f"👤 Buyurtmachi: @{call.from_user.username or 'mavjud_emas'}\n"
     for item in items:
         admin_text += f"  • {item['name']} x {item['quantity']} = {item['price'] * item['quantity']:,} so'm\n"
     
