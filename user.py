@@ -161,7 +161,7 @@ async def process_feedback(message: Message, state: FSMContext):
 
 👤 Foydalanuvchi: {message.from_user.full_name}
 🆔 ID: <code>{message.from_user.id}</code>
-📧 Username: @{message.from_user.username or 'yo\'q'}
+📧 Username: @{message.from_user.username or "yo'q"}
 
 💬 <b>Xabar:</b>
 {message.text}
