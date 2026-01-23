@@ -34,7 +34,7 @@ async def main():
     # BOT OBYEKTINI FAQAT BIR MARTA VA TO'G'RI SOZLAMALAR BILAN YARATING
     bot = Bot(
         token=BOT_TOKEN,
-        session=session,
+        await dp.start_polling(bot)
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
