@@ -32,18 +32,20 @@ async def main():
     """Botni ishga tushirish"""
 
     # BOT OBYEKTINI FAQAT BIR MARTA VA TO'G'RI SOZLAMALAR BILAN YARATING
+  # 1. Botni yaratish
     bot = Bot(
         token=BOT_TOKEN,
-        await dp.start_polling(bot)
         default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
+
+    # 2. Dispatcherni yaratish
     dp = Dispatcher()
 
-    # Ma'lumotlar bazasini ishga tushirish
-    logger.info("Ma'lumotlar bazasi ishga tushirilmoqda...")
-    await init_db()
-    logger.info("Ma'lumotlar bazasi tayyor!")
+    # Ma'lumotlar bazasini ishga tushirish (bu qatorlar o'z joyida turaversin)
+    # await database.connect() ...
 
+    # 3. Botni ishga tushirish (BU ENG OXIRIDA BO'LISHI KERAK)
+    await dp.start_polling(bot)
     # Routerlarni qo'shish
     dp.include_router(user.router)
     dp.include_router(products.router)
