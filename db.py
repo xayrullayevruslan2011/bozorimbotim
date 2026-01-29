@@ -4,59 +4,43 @@ class Database:
     def __init__(self, db_file):
         self.connection = sqlite3.connect(db_file)
         self.cursor = self.connection.cursor()
+        self.create_table_orders()
 
-    # Buyurtmalar jadvalini yaratish
-    def create_orders_table(self):
+    def create_table_orders(self):
+        """Buyurtmalar jadvalini yaratish"""
         with self.connection:
-            return self.cursor.execute("""
+            self.cursor.execute("""
                 CREATE TABLE IF NOT EXISTS orders (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER,
                     full_name TEXT,
                     photo_id TEXT,
-                    products TEXT,
-                    total_price TEXT,
+                    product_name TEXT,
+                    price TEXT,
                     track_code TEXT DEFAULT 'Kutilmoqda...',
-                    status TEXT DEFAULT 'tekshirilmoqda'
+                    status TEXT DEFAULT 'Tekshirilmoqda...'
                 )
             """)
 
-    # Yangi buyurtma qo'shish
-    def add_order(self, user_id, full_name, photo_id, products, total_price):
+    def add_order(self, user_id, full_name, photo_id, product_name, price):
+        """Yangi buyurtma qo'shish"""
         with self.connection:
-            return self.cursor.execute("""
-                INSERT INTO orders (user_id, full_name, photo_id, products, total_price) 
-                VALUES (?, ?, ?, ?, ?)
-            """, (user_id, full_name, photo_id, products, total_price)).lastrowid
+            self.cursor.execute("INSERT INTO orders (user_id, full_name, photo_id, product_name, price) VALUES (?, ?, ?, ?, ?)",
+                                (user_id, full_name, photo_id, product_name, price))
+            return self.cursor.lastrowid
 
-    # Trek kodni yangilash (Admin uchun)
-    def update_track_code(self, order_id, track_code):
-        with self.connection:
-            return self.cursor.execute("""
-                UPDATE orders SET track_code = ?, status = '✅ Yuborildi' 
-                WHERE id = ?
-            """, (track_code, order_id))
-
-    # Buyurtmani bekor qilish (Admin uchun)
-    def reject_order(self, order_id):
-        with self.connection:
-            return self.cursor.execute("""
-                UPDATE orders SET status = '❌ Bekor qilindi' 
-                WHERE id = ?
-            """, (order_id,))
-
-    # Foydalanuvchi buyurtmalarini olish
     def get_user_orders(self, user_id):
+        """Foydalanuvchi buyurtmalarini olish"""
         with self.connection:
-            return self.cursor.execute("""
-                SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC
-            """, (user_id,)).fetchall()
-            
-    # Bitta buyurtmani olish
-    def get_order(self, order_id):
-        with self.connection:
-            return self.cursor.execute("SELECT * FROM orders WHERE id = ?", (order_id,)).fetchone()
+            return self.cursor.execute("SELECT * FROM orders WHERE user_id = ? ORDER BY id DESC", (user_id,)).fetchall()
 
-# Bazani ulash
-db = Database('database.db')
-db.create_orders_table()
+    def update_order_status(self, order_id, status, track_code=None):
+        """Admin uchun: Statusni o'zgartirish"""
+        with self.connection:
+            if track_code:
+                self.cursor.execute("UPDATE orders SET status = ?, track_code = ? WHERE id = ?", (status, track_code, order_id))
+            else:
+                self.cursor.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
+
+# Obyekt yaratamiz (user.py shu nom bilan chaqiradi)
+db = Database('market.db')

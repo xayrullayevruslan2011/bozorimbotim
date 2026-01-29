@@ -3,7 +3,11 @@ FSM States - Bot holatlari
 Mahsulot qo'shish, buyurtma berish va boshqa jarayonlar uchun
 """
 from aiogram.fsm.state import State, StatesGroup
+class ContactState(StatesGroup):
+    message = State()
 
+class CheckoutState(StatesGroup):
+    waiting_for_receipt = State()
 class AddProductState(StatesGroup):
     """Mahsulot qo'shish holatlari"""
     category = State()      # Kategoriyani tanlash
