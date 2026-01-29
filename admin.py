@@ -1,12 +1,18 @@
 """
 Admin handlerlari
-Mahsulot qo'shish/o'chirish, statistika, xabar yuborish
+Mahsulot qo'shish/o'chirish, statistika, xabar yuborish + BUYURTMALAR + FIREBASE (KURSLAR)
 """
+import os
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
+# 🔥 FIREBASE KUTUBXONALARI (YANGI)
+import firebase_admin
+from firebase_admin import credentials, firestore
+
 from config import ADMIN_IDS
+# Eski baza importlari (Mahsulotlar uchun)
 from database import (
     get_categories,
     add_category,
@@ -18,6 +24,9 @@ from database import (
     get_users_count,
     get_orders_count
 )
+# 🆕 Yangi baza importi (Buyurtmalar va Trek kod uchun)
+import db 
+
 from keyboards import (
     get_admin_panel_keyboard,
     get_admin_categories_keyboard,
@@ -28,9 +37,25 @@ from keyboards import (
     get_broadcast_confirm_keyboard,
     get_main_menu
 )
-from states import AddProductState, AddCategoryState, BroadcastState
+from states import AddProductState, AddCategoryState, BroadcastState, AdminState
 
 router = Router()
+
+# ==================================================
+# 🔥 FIREBASE NI ISHGA TUSHIRISH (KURSLAR UCHUN)
+# ==================================================
+if not firebase_admin._apps:
+    try:
+        # Fayl nomi aniq firebase_key.json bo'lishi kerak!
+        cred = credentials.Certificate("firebase_key.json")
+        firebase_admin.initialize_app(cred)
+        print("✅ Firebase muvaffaqiyatli ulandi!")
+    except Exception as e:
+        print(f"❌ Firebase xatosi: {e}")
+        print("⚠️ Iltimos, firebase_key.json fayli borligini tekshiring!")
+
+# Bazani olish
+db_firebase = firestore.client()
 
 
 # ============ ADMIN TEKSHIRUVI ============
@@ -476,3 +501,165 @@ async def cancel_broadcast(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_main_menu(True)
     )
     await callback.answer()
+
+
+# ==================================================
+# 🔥 BUYURTMALAR BOSHQARUVI (MAHSULOTLAR UCHUN) 🔥
+# ==================================================
+
+@router.callback_query(F.data == "admin_orders")
+async def admin_orders_list(callback: CallbackQuery):
+    """Oxirgi buyurtmalarni ko'rish tugmasi bosilganda"""
+    orders_count = await get_orders_count()
+    await callback.answer(f"Jami buyurtmalar: {orders_count} ta.\nYangi buyurtmalar sizga rasm shaklida keladi.", show_alert=True)
+
+
+# 1. Admin "TASDIQLASH" tugmasini bossa (Buyurtma chek tagida)
+@router.callback_query(F.data.startswith("admin_confirm_"))
+async def approve_order_handler(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return
+
+    order_id = callback.data.split("_")[2]
+    
+    await callback.message.answer(
+        f"✅ <b>Buyurtma #{order_id} qabul qilindi.</b>\n\n"
+        "✍️ Iltimos, mijozga yuborish uchun <b>TREK RAQAMNI</b> yozing:",
+        reply_markup=get_cancel_button(),
+        parse_mode="HTML"
+    )
+    
+    await state.update_data(order_id=order_id)
+    await state.set_state(AdminState.waiting_for_track)
+    await callback.answer()
+
+
+# 2. Admin Trek kodni yozganda
+@router.message(AdminState.waiting_for_track)
+async def process_track_code(message: Message, state: FSMContext, bot: Bot):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await message.answer("❌ Trek kodi kiritish bekor qilindi.", reply_markup=get_main_menu(True))
+        return
+
+    track_code = message.text
+    data = await state.get_data()
+    order_id = data.get('order_id')
+    
+    # 1. Bazani yangilash
+    db.db.update_track_code(order_id, track_code)
+    
+    # 2. Buyurtma egasini topish
+    order = db.db.get_order(order_id)
+    if order:
+        user_id = order[1] # user_id 2-ustunda
+        
+        # 3. Mijozga xabar yuborish
+        try:
+            await bot.send_message(
+                user_id,
+                f"✅ <b>Sizning #{order_id} buyurtmangiz tasdiqlandi!</b>\n\n"
+                f"🔢 <b>Trek kodingiz:</b> <code>{track_code}</code>\n\n"
+                f"Uni 📦 'Mening buyurtmalarim' bo'limida ham ko'rishingiz mumkin.",
+                parse_mode="HTML"
+            )
+            await message.answer(f"✅ Trek kod saqlandi va mijozga yuborildi:\n<code>{track_code}</code>", reply_markup=get_main_menu(True), parse_mode="HTML")
+        except Exception as e:
+            await message.answer(f"⚠️ Trek saqlandi, lekin mijozga xabar bora olmadi (Bloklagan bo'lishi mumkin).\nXato: {e}", reply_markup=get_main_menu(True))
+    else:
+        await message.answer("⚠️ Xatolik: Buyurtma bazadan topilmadi.")
+
+    await state.clear()
+
+
+# 3. Admin "RAD ETISH" tugmasini bossa (Buyurtma uchun)
+@router.callback_query(F.data.startswith("admin_reject_"))
+async def reject_order_handler(callback: CallbackQuery, bot: Bot):
+    if not is_admin(callback.from_user.id):
+        return
+
+    order_id = callback.data.split("_")[2]
+    
+    # Bazada statusni o'zgartirish
+    db.db.reject_order(order_id)
+    
+    # Xabarni o'zgartirib qo'yish
+    await callback.message.edit_caption(
+        caption=f"{callback.message.caption}\n\n❌ <b>BEKOR QILINDI</b>",
+        reply_markup=None, 
+        parse_mode="HTML"
+    )
+    
+    # Mijozga xabar berish
+    order = db.db.get_order(order_id)
+    if order:
+        user_id = order[1]
+        try:
+            await bot.send_message(user_id, f"❌ Sizning #{order_id} buyurtmangiz bekor qilindi.\nQo'shimcha ma'lumot uchun admin bilan bog'laning.")
+        except:
+            pass
+            
+    await callback.answer("❌ Buyurtma bekor qilindi", show_alert=True)
+
+
+# ==================================================
+# 🔥 FIREBASE: KURSLAR UCHUN TO'LOV TASDIQLASH 🔥
+# ==================================================
+
+# 1. Admin "✅ Tasdiqlash" ni bossa (KURS uchun)
+@router.callback_query(F.data.startswith("pay_confirm_"))
+async def approve_payment_handler(callback: CallbackQuery):
+    # Emailni ajratib olish
+    user_email = callback.data.split("_")[2]
+    
+    admin_msg = ""
+    try:
+        # Userni email orqali qidiramiz
+        users_ref = db_firebase.collection('users')
+        query = users_ref.where('email', '==', user_email).get()
+
+        if query:
+            # Agar user topilsa, unga kursni qo'shamiz
+            user_doc = query[0]
+            user_doc.reference.update({
+                'ownedCourses': firestore.ArrayUnion(['pinduoduo-pro']) 
+            })
+            admin_msg = "✅ Kurs ochildi (Firebase bazaga yozildi)."
+        else:
+            # Agar user bazada bo'lmasa, yangi ochib qo'yamiz
+            users_ref.add({
+                'email': user_email,
+                'ownedCourses': ['pinduoduo-pro'],
+                'role': 'student'
+            })
+            admin_msg = "✅ Yangi user yaratildi va kurs ochildi."
+            
+    except Exception as e:
+        print(f"Firebase xatosi: {e}")
+        admin_msg = f"⚠️ Baza xatosi: {e}"
+
+    # Xabarni tahrirlash
+    original_caption = callback.message.caption
+    new_caption = f"{original_caption}\n\n✅ <b>QABUL QILINDI!</b>\n{admin_msg}"
+
+    await callback.message.edit_caption(
+        caption=new_caption,
+        parse_mode="HTML",
+        reply_markup=None 
+    )
+    await callback.answer("✅ To'lov tasdiqlandi!")
+
+
+# 2. Admin "❌ Bekor qilish" ni bossa (KURS uchun)
+@router.callback_query(F.data == "pay_reject")
+async def reject_payment_handler(callback: CallbackQuery):
+    original_caption = callback.message.caption
+    new_caption = f"{original_caption}\n\n❌ <b>TO'LOV RAD ETILDI!</b>\nChek yaroqsiz yoki noto'g'ri."
+
+    await callback.message.edit_caption(
+        caption=new_caption,
+        parse_mode="HTML",
+        reply_markup=None 
+    )
+    
+    await callback.answer("❌ To'lov bekor qilindi", show_alert=True)

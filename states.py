@@ -37,3 +37,11 @@ class BroadcastState(StatesGroup):
 class ContactState(StatesGroup):
     """Aloqa holatlari"""
     message = State()       # Xabar
+    from aiogram.fsm.state import State, StatesGroup # Agar aiogram 3 bo'lsa
+# Yoki eski versiya bo'lsa: from aiogram.dispatcher.filters.state import State, StatesGroup
+
+class CheckoutState(StatesGroup):
+    waiting_for_receipt = State() # Foydalanuvchi chek tashlashi kerak
+
+class AdminState(StatesGroup):
+    waiting_for_track = State() # Admin trek kod yozishi kerak

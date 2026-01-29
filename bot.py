@@ -1,68 +1,46 @@
-"""
-Ruslam|Market Bot
-Asosiy bot fayli - barcha handlerlarni birlashtiradi
-"""
-from keep_alive import keep_alive
-keep_alive()
 import asyncio
 import logging
+import sys
 from aiogram import Bot, Dispatcher
-from aiogram.enums import ParseMode
-from aiogram.client.default import DefaultBotProperties
-from aiogram.client.session.aiohttp import AiohttpSession
+from config import BOT_TOKEN
+from keep_alive import keep_alive
+import database  # <--- MANA SHU QATOR BO'LISHI SHART!
+import user, admin, cart, products
 
-# 1. KONFIGURATSIYANI BIRINCHI IMPORT QILING
-from config import BOT_TOKEN 
-from database import init_db
-
-# 2. PROXY VA BOTNI TO'G'RI SOZLANG
-# PythonAnywhere bepul tarifi uchun proxy shart
-
-# Handlerlarni import qilish (DATABASE dan keyin bo'lishi xavfsizroq)
-import user, products, cart, admin
-
-# Logging sozlash
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+# Loglarni sozlash
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Bot va Dispatcher
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
+
 async def main():
-    """Botni ishga tushirish"""
+    # 1. Serverni ishga tushirish
+    keep_alive()
 
-    # BOT OBYEKTINI FAQAT BIR MARTA VA TO'G'RI SOZLAMALAR BILAN YARATING
-  # 1. Botni yaratish
-    bot = Bot(
-        token=BOT_TOKEN,
-        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
-    )
-
-    # 2. Dispatcherni yaratish
-    dp = Dispatcher()
-
-    # Ma'lumotlar bazasini ishga tushirish (bu qatorlar o'z joyida turaversin)
-    # await database.connect() ...
-
-    # 3. Botni ishga tushirish (BU ENG OXIRIDA BO'LISHI KERAK)
-    await dp.start_polling(bot)
-    # Routerlarni qo'shish
-    dp.include_router(user.router)
-    dp.include_router(products.router)
-    dp.include_router(cart.router)
-    dp.include_router(admin.router)
-
-    # Botni ishga tushirish
-    logger.info("Bot ishga tushirilmoqda...")
-
+    # 2. BAZANI YARATISH (Bu bo'lmasa bot ishlamaydi!)
     try:
-        # Eski webhook-larni o'chirish
-        await bot.delete_webhook(drop_pending_updates=True)
+        await database.init_db()
+        logger.info("✅ Baza yaratildi!")
+    except Exception as e:
+        logger.error(f"❌ Baza xatosi: {e}")
+    
+    # 3. Routerlarni ulash
+    dp.include_router(user.router)
+    dp.include_router(admin.router)
+    dp.include_router(cart.router)
+    dp.include_router(products.router)
 
-        # Polling rejimida ishga tushirish
-        await dp.start_polling(bot)
-    finally:
-        await bot.session.close()
+    # 4. Eski webhooklarni o'chirish
+    await bot.delete_webhook(drop_pending_updates=True)
+    
+    # 5. Botni ishga tushirish
+    logger.info("Bot ishga tushdi... 🚀")
+    await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot to'xtatildi")

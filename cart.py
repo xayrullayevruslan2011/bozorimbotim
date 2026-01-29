@@ -291,10 +291,15 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
     if order_id:
         # Adminga xabar yuborish
         await notify_admin_new_order(callback.bot, order_id, callback.from_user, data)
-        
+
         await callback.message.edit_text(
             f"✅ <b>Buyurtmangiz qabul qilindi!</b>\n\n"
             f"🆔 Buyurtma raqami: <code>#{order_id}</code>\n\n"
+            f"➖➖➖➖➖➖➖➖➖➖\n"
+            f"💳 <b>To'lov uchun:</b>\n"
+            f"💳 <b>4073 4200 6735 5457</b> (Holboyeva G.)\n"
+            f"📝 Iltimos, to'lov chekini @Ruslanbek20119 ga yuboring.\n"
+            f"➖➖➖➖➖➖➖➖➖➖\n\n"
             f"Tez orada siz bilan bog'lanamiz! 📞",
             parse_mode="HTML"
         )
@@ -327,32 +332,17 @@ async def cancel_order(callback: CallbackQuery, state: FSMContext):
 
 
 async def notify_admin_new_order(bot: Bot, order_id: int, user, data: dict):
-    """Adminga yangi buyurtma haqida xabar yuborish"""
-    from database import get_order_items, get_order
+    # Admin uchun xabar tayyorlash
+    text = f"🆕 <b>Yangi buyurtma!</b>\n"
+    text += f"🆔 Buyurtma raqami: #{order_id}\n\n"
     
-    order = await get_order(order_id)
-    items = await get_order_items(order_id)
-    
-    admin_text = f"""
-🆕 <b>Yangi buyurtma!</b>
+    text += f"👤 Buyurtmachi: @{user.username or 'mavjud_emas'}\n"
+    text += f"📞 Telefon: {data.get('phone', 'Kiritilmagan')}\n"
+    text += f"📍 Manzil: {data.get('address', 'Kiritilmagan')}\n"
 
-🆔 Buyurtma: <code>#{order_id}</code>
-
-👤 Mijoz: {user.full_name}
-📧 Username: @{user.username or 'yo\'q'}
-📱 Telefon: {data['phone']}
-📍 Manzil: {data['address']}
-
-📦 <b>Mahsulotlar:</b>
-"""
-    text += f"👤 Buyurtmachi: @{call.from_user.username or 'mavjud_emas'}\n"
-    for item in items:
-        admin_text += f"  • {item['name']} x {item['quantity']} = {item['price'] * item['quantity']:,} so'm\n"
-    
-    admin_text += f"\n💰 <b>Jami: {order['total_amount']:,} so'm</b>"
-    
+    # Adminga yuborish
     for admin_id in ADMIN_IDS:
         try:
-            await bot.send_message(admin_id, admin_text, parse_mode="HTML")
+            await bot.send_message(admin_id, text, parse_mode="HTML")
         except:
             pass
