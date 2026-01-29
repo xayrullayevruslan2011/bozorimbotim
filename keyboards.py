@@ -17,7 +17,7 @@ from config import ADMIN_USERNAME
 NASIYA_URL = "https://nasiyaruslan.vercel.app"
 
 
-# ============ ASOSIY MENYU (O'ZGARTIRILDI) ✅ ============
+# ============ ASOSIY MENYU ============
 
 def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
     """Asosiy menyu tugmalari"""
@@ -29,7 +29,7 @@ def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
         KeyboardButton(text="🎓 Online Kurslar")
     )
     
-    # 2-qator: Savat va Buyurtmalar ("Limit olish" olib tashlandi, o'rni to'ldirildi)
+    # 2-qator: Savat va Buyurtmalar
     builder.row(
         KeyboardButton(text="🛒 Savat"),
         KeyboardButton(text="📦 Mening buyurtmalarim")
@@ -41,10 +41,10 @@ def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
         KeyboardButton(text="⚙️ Sozlamalar")
     )
     
-    # 4-qator: Ma'lumot va YANGI BO'LIM (Siz so'ragan joy)
+    # 4-qator: Ma'lumot va Yangi Bo'lim
     builder.row(
         KeyboardButton(text="ℹ️ Ma'lumot"),
-        KeyboardButton(text="📂 Yangi Bo'lim") # <-- Nomini o'zingizga moslab o'zgartiring
+        KeyboardButton(text="📂 Yangi Bo'lim") 
     )
     
     # Admin uchun
@@ -66,7 +66,6 @@ def get_website_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 # ============ LIMIT OLISH TUGMASI (INLINE) ============
-# Bu tugma menyuda ko'rinmaydi, lekin kod ichida kerak bo'lsa turgani ma'qul
 def get_limit_keyboard() -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -81,11 +80,8 @@ def get_limit_keyboard() -> InlineKeyboardMarkup:
 # ============ NASIYA VA KIYIMLAR UCHUN TUGMALAR ============
 
 def get_buy_button(product_name: str, price: int) -> InlineKeyboardMarkup:
-    """
-    UNIVERSAL NASIYA TUGMASI
-    """
+    """UNIVERSAL NASIYA TUGMASI"""
     full_url = f"{NASIYA_URL}?name={product_name}&price={price}"
-    
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
@@ -96,12 +92,10 @@ def get_buy_button(product_name: str, price: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 def get_clothing_keyboard() -> InlineKeyboardMarkup:
-    """
-    Jinsi va Bryuk uchun maxsus tugmalar
-    """
+    """Jinsi va Bryuk uchun maxsus tugmalar"""
     builder = InlineKeyboardBuilder()
     
-    # 1. Oversize Jeans (170 000)
+    # 1. Oversize Jeans
     url_jeans = f"{NASIYA_URL}?name=Oversize Jeans&price=170000"
     builder.row(
         InlineKeyboardButton(
@@ -110,7 +104,7 @@ def get_clothing_keyboard() -> InlineKeyboardMarkup:
         )
     )
     
-    # 2. Oversize Bryuk (90 000)
+    # 2. Oversize Bryuk
     url_bryuk = f"{NASIYA_URL}?name=Oversize Bryuk&price=90000"
     builder.row(
         InlineKeyboardButton(
@@ -118,11 +112,10 @@ def get_clothing_keyboard() -> InlineKeyboardMarkup:
             web_app=WebAppInfo(url=url_bryuk)
         )
     )
-    
     return builder.as_markup()
 
 
-# ============ QOLGAN ESKI TUGMALAR (O'ZGARISHSIZ) ============
+# ============ QOLGAN ESKI TUGMALAR ============
 
 def get_back_button() -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
@@ -250,6 +243,7 @@ def get_admin_select_category_keyboard(categories: List[dict]) -> InlineKeyboard
     builder.row(InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_add_product"))
     return builder.as_markup()
 
+
 # ============ MAJBURIY OBUNA ============
 
 def get_subscription_keyboard():
@@ -264,23 +258,20 @@ def get_subscription_keyboard():
     builder.row(InlineKeyboardButton(text="✅ Obunani tekshirish", callback_data="check_subscription"))
     
     return builder.as_markup()
+
+
 # =========================================================
-# 🆕 YANGI QO'SHILGAN KODLAR (TO'LOV VA BUYURTMALAR UCHUN)
+# 🆕 TO'LOV VA BUYURTMALAR UCHUN TUGMALAR
 # =========================================================
 
 def get_payment_cancel_keyboard() -> ReplyKeyboardMarkup:
-    """
-    Foydalanuvchi chek yuborish jarayonida bekor qilishi uchun
-    """
+    """Foydalanuvchi chek yuborish jarayonida bekor qilishi uchun"""
     builder = ReplyKeyboardBuilder()
     builder.row(KeyboardButton(text="❌ To'lovni bekor qilish"))
     return builder.as_markup(resize_keyboard=True)
 
 def get_admin_check_keyboard(order_id: int) -> InlineKeyboardMarkup:
-    """
-    Admin foydalanuvchi chekini ko'rganda chiqadigan tugmalar.
-    order_id - bu qaysi buyurtmaligini bilish uchun kerak.
-    """
+    """Admin foydalanuvchi chekini ko'rganda chiqadigan tugmalar"""
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
@@ -297,20 +288,15 @@ def get_admin_check_keyboard(order_id: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 def get_user_orders_navigation(current_index: int, total_orders: int) -> InlineKeyboardMarkup:
-    """
-    'Mening buyurtmalarim' bo'limida bittadan varaqlash uchun tugmalar.
-    """
+    """'Mening buyurtmalarim' bo'limida varaqlash"""
     builder = InlineKeyboardBuilder()
     buttons = []
 
-    # Agar birinchi buyurtma bo'lmasa, "Oldingi" tugmasini qo'shish
     if current_index > 0:
         buttons.append(InlineKeyboardButton(text="⬅️", callback_data=f"my_orders_prev_{current_index}"))
 
-    # O'rtada sahifa raqami (masalan: 1/5)
     buttons.append(InlineKeyboardButton(text=f"{current_index + 1} / {total_orders}", callback_data="noop"))
 
-    # Agar oxirgi buyurtma bo'lmasa, "Keyingi" tugmasini qo'shish
     if current_index < total_orders - 1:
         buttons.append(InlineKeyboardButton(text="➡️", callback_data=f"my_orders_next_{current_index}"))
 
@@ -318,14 +304,14 @@ def get_user_orders_navigation(current_index: int, total_orders: int) -> InlineK
     builder.row(InlineKeyboardButton(text="❌ Yopish", callback_data="close_my_orders"))
     
     return builder.as_markup()
-# ... (Yuqoridagi eski kodlaringiz turaversin) ...
 
-# ============ 🎓 YANGI: KURSLAR VA TO'LOV TUGMALARI ============
+
+# =========================================================
+# 🆕 ONLINE KURSLAR VA TO'LOV TUGMALARI (Siz so'ragan)
+# =========================================================
 
 def get_tariffs_keyboard() -> InlineKeyboardMarkup:
-    """
-    1-QADAM: Tariflarni tanlash uchun tugmalar
-    """
+    """1-QADAM: Tariflarni tanlash uchun tugmalar"""
     builder = InlineKeyboardBuilder()
     
     # Tariflar
@@ -339,16 +325,13 @@ def get_tariffs_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 def get_payment_actions_keyboard(price_text: str) -> InlineKeyboardMarkup:
-    """
-    2-QADAM: To'lov qilish menyusi (Nusxalash tugmalari bilan)
-    price_text: Masalan '100 000'
-    """
+    """2-QADAM: To'lov qilish menyusi (Nusxalash tugmalari bilan)"""
     builder = InlineKeyboardBuilder()
 
     # 1. Tekshirish
     builder.row(InlineKeyboardButton(text="♻️ Tekshirish", callback_data="check_payment"))
 
-    # 2. Karta raqamni nusxalash (Bosilganda raqamni yuboramiz)
+    # 2. Karta raqamni nusxalash
     builder.row(InlineKeyboardButton(text="💳 Karta raqamni nusxalash * 5457", callback_data="copy_card_number"))
 
     # 3. Summani nusxalash
