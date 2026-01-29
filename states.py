@@ -4,7 +4,6 @@ Mahsulot qo'shish, buyurtma berish va boshqa jarayonlar uchun
 """
 from aiogram.fsm.state import State, StatesGroup
 
-
 class AddProductState(StatesGroup):
     """Mahsulot qo'shish holatlari"""
     category = State()      # Kategoriyani tanlash
@@ -14,12 +13,10 @@ class AddProductState(StatesGroup):
     photo = State()         # Rasm
     stock = State()         # Ombordagi soni
 
-
 class AddCategoryState(StatesGroup):
     """Kategoriya qo'shish holatlari"""
     name = State()          # Kategoriya nomi
     emoji = State()         # Emoji
-
 
 class OrderState(StatesGroup):
     """Buyurtma berish holatlari"""
@@ -27,21 +24,19 @@ class OrderState(StatesGroup):
     address = State()       # Manzil
     confirm = State()       # Tasdiqlash
 
-
 class BroadcastState(StatesGroup):
     """Xabar yuborish holatlari"""
     message = State()       # Xabar matni
     confirm = State()       # Tasdiqlash
 
-
 class ContactState(StatesGroup):
     """Aloqa holatlari"""
     message = State()       # Xabar
-    from aiogram.fsm.state import State, StatesGroup # Agar aiogram 3 bo'lsa
-# Yoki eski versiya bo'lsa: from aiogram.dispatcher.filters.state import State, StatesGroup
 
 class CheckoutState(StatesGroup):
+    """To'lov qilish holati"""
     waiting_for_receipt = State() # Foydalanuvchi chek tashlashi kerak
 
 class AdminState(StatesGroup):
+    """Admin buyurtmani tasdiqlash holati"""
     waiting_for_track = State() # Admin trek kod yozishi kerak
