@@ -468,3 +468,78 @@ async def process_feedback(message: Message, state: FSMContext):
 async def show_location(callback: CallbackQuery):
     await callback.message.answer_location(latitude=40.1031, longitude=65.3742)
     await callback.answer("📍 Manzilimiz")
+    # ==================================================
+# 🔥 YANGI: ONLINE KURSLAR (SAYTSIZ - TELEGRAM ICHIDA) 🔥
+# ==================================================
+
+# 1. "🎓 Online Kurslar" tugmasi bosilganda -> Tariflar chiqadi
+@router.message(F.text == "🎓 Online Kurslar")
+async def show_courses_handler(message: Message):
+    text = (
+        "👋 SALOM, QADRLI DO‘ST! 🤝\n\n"
+        "🇨🇳 XITOY SAVDO KURSIMIZ 3 ta qulay tarif asosida o‘rgatiladi 👇\n\n"
+        "———————————\n"
+        "🔵 START TARIFI\n✅ Oyiga: 50 000 so‘m\n\n"
+        "Ichida:\n"
+        "✔️ Xitoydan olib kelish asoslari\n"
+        "✔️ Kargo va narx hisoblash\n"
+        "✔️ Boshlovchilar uchun yo‘l xarita\n\n"
+        "———————————\n"
+        "🟠 PRO TARIFI\n✅ Oyiga: 70 000 so‘m\n\n"
+        "Ichida:\n"
+        "✔️ Start tarifdagi hamma darslar\n"
+        "✔️ Pinduoduo / 1688 bilan ishlash\n"
+        "✔️ Arzon mahsulot topish usullari\n"
+        "✔️ Xatolardan saqlanish\n\n"
+        "———————————\n"
+        "🟣 VIP TARIFI\n✅ Oyiga: 100 000 so‘m\n\n"
+        "Ichida:\n"
+        "✔️ BARCHA darslar\n"
+        "✔️ WeChat orqali Xitoy sotuvchisi bilan yozishish\n"
+        "✔️ Tayyor Xitoycha iboralar\n"
+        "✔️ Real savdo misollar\n"
+        "✔️ Yopiq Telegram guruh\n\n"
+        "———————————\n"
+        "⏳ JOYI CHEKLANGAN!\n"
+        "Bugun qo‘shilmasangiz, keyin kech bo‘lishi mumkin ❗️\n"
+        "🏃‍♂️ Shoshiling!"
+    )
+    # Sayt linki YO'Q, o'rniga Tarif tugmalari chiqadi
+    await message.answer(text, reply_markup=get_tariffs_keyboard())
+
+
+# 2. Tarif tanlanganda (Start, Pro, VIP) -> To'lov ma'lumotlari chiqadi
+@router.callback_query(F.data.startswith("tariff_"))
+async def select_tariff_handler(call: CallbackQuery, state: FSMContext):
+    tariff_code = call.data.split("_")[1]
+    
+    price = "0"
+    tariff_name = ""
+    
+    if tariff_code == "start":
+        price = "50 000"
+        tariff_name = "🔵 START TARIFI"
+    elif tariff_code == "pro":
+        price = "70 000"
+        tariff_name = "🟠 PRO TARIFI"
+    elif tariff_code == "vip":
+        price = "100 000"
+        tariff_name = "🟣 VIP TARIFI"
+
+    # State ga qaysi tarifni tanlaganini yozib qo'yamiz
+    await state.update_data(product_name=f"Online Kurs: {tariff_name}")
+
+    text = (
+        f"Siz tanladingiz: <b>{tariff_name}</b>\n\n"
+        f"💳 <b>TO‘LOV QILISH UCHUN 👇</b>\n\n"
+        f"👉 PAYME\n👉 CLICK\n👉 PAYNET\n\n"
+        f"📌 Iltimos To’lov qilgandan keyin Chekni yuboring\n\n"
+        f"💳 <b>Karta orqali:</b>\n"
+        f"<code>{CARD_NUMBER}</code>\n"
+        f"👤 <b>{CARD_OWNER}</b>\n\n"
+        f"💰 <b>To'lov summasi:</b> {price} so'm"
+    )
+
+    await call.message.delete()
+    # To'lov tugmalari (Nusxalash, Tekshirish)
+    await call.message.answer(text, parse_mode="HTML", reply_markup=get_payment_actions_keyboard(price))
