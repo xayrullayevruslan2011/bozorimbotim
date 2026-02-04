@@ -7,9 +7,8 @@ import asyncio
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from db import add_product # database funksiyasi
-from states import AddProduct # FSM klassi
-
+from db import add_product  # db.py ichida add_product funksiyasi bo'lishi shart
+from states import AddProduct  # states.py ichida media = State() bo'lishi shar
 # Kerakli fayllardan importlar
 from config import ADMIN_IDS
 # Eski baza importlari (Mahsulotlar va Kategoriyalar uchun)
@@ -580,18 +579,17 @@ async def reject_order_handler(callback: CallbackQuery, bot: Bot):
     await callback.answer("❌ Buyurtma bekor qilindi", show_alert=True)
     # admin.py ichida, media qabul qilish qismida
 @router.message(AddProduct.media, F.photo | F.video)
-async def handle_media(message: Message, state: FSMContext):
+async def collect_media(message: Message, state: FSMContext):
     data = await state.get_data()
-    # Agar media_ids hali yo'q bo'lsa, bo'sh ro'yxat yaratamiz
-    current_media = data.get("media_ids", []) 
+    # Avval yuborilganlarni olamiz yoki bo'sh ro'yxat ochamiz
+    m_list = data.get("media_list", [])
 
+    # file_id ni olish mantiqi
     if message.photo:
-        # Eng sifatli rasmning file_id sini olamiz
-        fid = f"photo:{message.photo[-1].file_id}"
+        fid = f"photo:{message.photo[-1].file_id}" # Eng sifatli rasm IDsi
     else:
-        # Videoning file_id sini olamiz
-        fid = f"video:{message.video.file_id}"
+        fid = f"video:{message.video.file_id}" # Video IDsi
 
-    current_media.append(fid)
-    await state.update_data(media_ids=current_media) # Ro'yxatni yangilaymiz
-    await message.answer(f"✅ Fayl qo'shildi! Jami: {len(current_media)} ta.\nYana yuboring yoki 'Tayyor' deb yozing.")
+    m_list.append(fid)
+    await state.update_data(media_list=m_list) # media_ids ro'yxatini yangilash
+    await message.answer(f"✅ Fayl olindi! Jami: {len(m_list)} ta. Yana bormi?")
