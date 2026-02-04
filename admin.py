@@ -3,6 +3,12 @@ Admin handlerlari (Tozalangan Versiya)
 Firebase olib tashlandi -> SQLite ga o'tkazildi.
 Mahsulot qo'shish/o'chirish, statistika, xabar yuborish + BUYURTMALAR
 """
+# admin.py tepasiga
+from database import (
+    get_categories, add_category, delete_category,
+    get_all_products, delete_product, get_all_users, get_users_count,
+    add_product # Faqat bir marta shu yerdan kelsin!
+)
 import asyncio
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
@@ -249,7 +255,52 @@ async def select_product_category(callback: CallbackQuery, state: FSMContext):
     )
     await state.set_state(AddProductState.name)
     await callback.answer()
+# --- MULTIMEDIA (RASM/VIDEO) YIG'ISH QISMI ---
 
+# 1. Admin rasm yoki video yuborganida ishlaydi
+@router.message(AddProductState.waiting_for_photo, F.photo | F.video)
+async def handle_multimedia_upload(message: Message, state: FSMContext):
+    data = await state.get_data()
+    # media_list - bu rasm/videolarni yig'ib boruvchi ro'yxat
+    m_list = data.get("media_list", [])
+
+    if message.photo:
+        # Eng sifatli rasmning ID sini olamiz
+        m_list.append(f"photo:{message.photo[-1].file_id}")
+    elif message.video:
+        # Videoning ID sini olamiz
+        m_list.append(f"video:{message.video.file_id}")
+
+    await state.update_data(media_list=m_list)
+    await message.answer(
+        f"📸 Fayl qabul qilindi (Jami: {len(m_list)} ta).\n"
+        f"Yana rasm/video yuboring yoki tugatish uchun <b>'✅ TAYYOR'</b> deb yozing.",
+        parse_mode="HTML"
+    )
+
+# 2. Admin '✅ TAYYOR' deb yozganida bazaga saqlaydi
+@router.message(AddProductState.waiting_for_photo, F.text == "✅ TAYYOR")
+async def finish_product_creation(message: Message, state: FSMContext):
+    data = await state.get_data()
+    m_list = data.get("media_list", [])
+    
+    if not m_list:
+        return await message.answer("Xatolik: Kamida bitta rasm yoki video yuboring!")
+
+    # Barcha rasm/video IDlarini bitta matnga aylantiramiz (vergul bilan ajratib)
+    media_ids_str = ",".join(m_list)
+    
+    # database.py dagi add_product funksiyasini chaqiramiz
+    # Eslatma: database.py dagi add_product funksiyang 4 ta argument qabul qilishi kerak
+    await add_product(
+        data['name'], 
+        data['price'], 
+        data['category_id'], 
+        media_ids_str
+    )
+    
+    await message.answer("🚀 Mahsulot muvaffaqiyatli saqlandi!", reply_markup=get_admin_panel_keyboard())
+    await state.clear()
 
 @router.callback_query(AddProductState.category, F.data == "cancel_add_product")
 async def cancel_add_product(callback: CallbackQuery, state: FSMContext):
