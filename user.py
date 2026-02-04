@@ -2,6 +2,7 @@
 Foydalanuvchi handlerlari
 Start, yordam, asosiy menyu + MAJBURIY OBUNA + LIMIT + TO'LOV TIZIMI + ONLINE KURSLAR (YANGI) + REFERAL
 """
+from db import get_user_stats, get_top_referrals, get_all_products
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, CommandObject
@@ -139,26 +140,30 @@ async def new_section_handler(message: Message, bot: Bot):
     
     await message.answer(text, parse_mode="HTML")
 # user.py yoki handlers qismiga
-@router.message(F.text == "👥 Referral") # Tugma nomiga moslang
-async def show_referral_info(message: Message):
+# user.py
+@router.message(F.text == "👤 Kabinet")
+async def show_profile(message: Message):
     user_id = message.from_user.id
-    # Bot username'ni config'dan yoki @bot_username ko'rinishida yozing
-    ref_link = f"https://t.me/bot_nomi?start={user_id}" 
+    user_data = await get_user_stats(user_id)
     
-    # Bazadan top foydalanuvchilarni olamiz
-    top_users = await get_top_referrals() 
-    
-    text = f"Sizning referal havolangiz:\n{ref_link}\n\n"
-    text += "🏆 **TOP 10 Taklif qiluvchilar:**\n\n"
-    
-    # SIZ SO'RAGAN QISM SHU YERGA TUSHADI:
-    emojis = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
-    
-    for i, (name, count) in enumerate(top_users, 0):
-        if i < len(emojis): # Xato bermasligi uchun tekshiruv
-            text += f"{emojis[i]} {name} — **{count}** ta do'st\n"
-    
-    await message.answer(text, parse_mode="Markdown")
+    if user_data:
+        name, balance, ref_count, date = user_data
+        
+        # Statusni aniqlash
+        status = "Yangi 🐣"
+        if ref_count > 10: status = "Kumush 🥈"
+        if ref_count > 50: status = "Oltin 🥇"
+
+        text = (
+            f"👤 **Shaxsiy Kabinet**\n\n"
+            f"🆔 **ID:** `{user_id}`\n"
+            f"👤 **Ism:** {name}\n"
+            f"💰 **Balans:** {balance} so'm\n"
+            f"👥 **Takliflar:** {ref_count} ta\n"
+            f"🌟 **Status:** {status}\n"
+            f"📅 **Sana:** {date}\n"
+        )
+        await message.answer(text, parse_mode="Markdown")
 
 
 # ==================================================
@@ -565,3 +570,10 @@ async def show_profile(message: Message):
         )
         
         await message.answer(text, parse_mode="Markdown")
+        # user.py ichiga
+@router.callback_query(F.data == "withdraw_products")
+async def show_exchange_products(callback: CallbackQuery):
+    # Bu yerda mahsulotlar bazasidan ma'lumot keladi
+    # Hozircha oddiy xabar ko'rinishida:
+    await callback.message.answer("🎁 Balansingizdagi pulga sotib olishingiz mumkin bo'lgan mahsulotlar:")
+    # Bu yerda mahsulotlarni chiqarish funksiyasini chaqirasiz

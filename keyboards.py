@@ -341,3 +341,13 @@ def get_payment_actions_keyboard(price_text: str) -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="❌ To'lovni bekor qilish", callback_data="delete_message"))
 
     return builder.as_markup()
+# keyboards.py fayliga qo'shing
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+def get_earn_menu():
+    buttons = [
+        [InlineKeyboardButton(text="💰 Pul ishlash", callback_data="earn_money")],
+        [InlineKeyboardButton(text="🏆 TOP 10 Talik", callback_data="top_10")],
+        [InlineKeyboardButton(text="🛍 Mahsulotlar (Pul yechish)", callback_data="withdraw_products")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)

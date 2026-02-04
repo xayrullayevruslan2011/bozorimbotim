@@ -44,3 +44,8 @@ class CheckoutState(StatesGroup):
 class AdminState(StatesGroup):
     """Admin buyurtmani tasdiqlash holati"""
     waiting_for_track = State() # Admin trek kod yozishi kerak
+    # states.py ichiga qo'shing
+class AddProduct(StatesGroup):
+    name = State()
+    price = State()
+    media = State() # Bu yerda rasm va videolar yig'iladi

@@ -190,3 +190,4 @@ async def add_product_with_size(callback: CallbackQuery):
 @router.callback_query(F.data == "delete_msg")
 async def delete_msg(callback: CallbackQuery):
     await callback.message.delete()
+    

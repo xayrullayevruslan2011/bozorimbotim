@@ -94,3 +94,28 @@ async def notify_inviter(bot: Bot, inviter_id: int, new_user_name: str):
         )
     except Exception:
         pass # Agar inviter botni bloklagan bo'lsa xato bermasligi uchun
+    # db.py ichiga
+async def get_all_products():
+    async with aiosqlite.connect("bot_database.db") as db:
+        async with db.execute("SELECT name, price, media_ids FROM products") as cursor:
+            return await cursor.fetchall()
+        # db.py ichida
+async def create_tables():
+    async with aiosqlite.connect("bot_database.db") as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS products (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT,
+                price INTEGER,
+                media_ids TEXT  -- Mana shu yerga hamma file_id'lar yoziladi
+            )
+        """)
+        await db.commit()
+        # db.py ichiga
+async def add_product(name, price, media_ids):
+    async with aiosqlite.connect("bot_database.db") as db:
+        await db.execute(
+            "INSERT INTO products (name, price, media_ids) VALUES (?, ?, ?)",
+            (name, price, media_ids)
+        )
+        await db.commit()
