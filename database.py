@@ -1,6 +1,6 @@
 """
 Ma'lumotlar bazasi - SQLite bilan ishlash
-Barcha jadvallar va CRUD operatsiyalari shu yerda
+Tahrirlangan: Har bir referal uchun 50 so'm bonus beriladi.
 """
 import aiosqlite
 from typing import Optional, List, Tuple
@@ -19,6 +19,8 @@ async def init_db():
                 username TEXT,
                 full_name TEXT,
                 phone TEXT,
+                referrer_id INTEGER,
+                balance INTEGER DEFAULT 0,
                 registered_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
@@ -114,15 +116,34 @@ async def add_default_categories():
         await db.commit()
 
 
-# ============ FOYDALANUVCHI FUNKSIYALARI ============
+# ============ FOYDALANUVCHI FUNKSIYALARI (O'ZGARTIRILDI) ============
 
-async def add_user(user_id: int, username: str, full_name: str):
-    """Yangi foydalanuvchi qo'shish"""
+async def add_user(user_id: int, username: str, full_name: str, referrer_id: int = None):
+    """Yangi foydalanuvchi qo'shish va referal tizimi"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        await db.execute("""
-            INSERT OR REPLACE INTO users (user_id, username, full_name)
-            VALUES (?, ?, ?)
-        """, (user_id, username, full_name))
+        # Avval foydalanuvchi borligini tekshiramiz
+        async with db.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,)) as cursor:
+            existing_user = await cursor.fetchone()
+
+        if existing_user:
+            # Agar foydalanuvchi allaqachon bor bo'lsa, faqat ma'lumotlarini yangilaymiz
+            await db.execute("""
+                UPDATE users SET username = ?, full_name = ? WHERE user_id = ?
+            """, (username, full_name, user_id))
+        else:
+            # Yangi foydalanuvchi qo'shish
+            await db.execute("""
+                INSERT INTO users (user_id, username, full_name, referrer_id, balance)
+                VALUES (?, ?, ?, ?, 0)
+            """, (user_id, username, full_name, referrer_id))
+            
+            # Agar uni kimdir taklif qilgan bo'lsa, taklif qilganga 50 SO'M bonus beramiz
+            if referrer_id:
+                BONUS_AMOUNT = 50  # <--- MANA SHU YER 50 SO'M QILINDI
+                await db.execute("""
+                    UPDATE users SET balance = balance + ? WHERE user_id = ?
+                """, (BONUS_AMOUNT, referrer_id))
+
         await db.commit()
 
 
@@ -153,19 +174,32 @@ async def get_users_count() -> int:
             return row[0]
 
 
-# ============ KATEGORIYA FUNKSIYALARI ============
+async def get_user_balance(user_id: int) -> int:
+    """Foydalanuvchi balansini olish"""
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        async with db.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
+
+
+async def get_referrals_count(user_id: int) -> int:
+    """Foydalanuvchi taklif qilgan odamlar sonini olish"""
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        async with db.execute("SELECT COUNT(*) FROM users WHERE referrer_id = ?", (user_id,)) as cursor:
+            row = await cursor.fetchone()
+            return row[0]
+
+
+# ============ KATEGORIYA VA MAHSULOTLAR (OZGARISHSIZ) ============
 
 async def get_categories() -> List[dict]:
-    """Barcha kategoriyalarni olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("SELECT * FROM categories") as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
-
 async def add_category(name: str, emoji: str = "📦") -> int:
-    """Yangi kategoriya qo'shish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         cursor = await db.execute(
             "INSERT INTO categories (name, emoji) VALUES (?, ?)",
@@ -174,25 +208,12 @@ async def add_category(name: str, emoji: str = "📦") -> int:
         await db.commit()
         return cursor.lastrowid
 
-
 async def delete_category(category_id: int):
-    """Kategoriyani o'chirish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         await db.execute("DELETE FROM categories WHERE id = ?", (category_id,))
         await db.commit()
 
-
-# ============ MAHSULOT FUNKSIYALARI ============
-
-async def add_product(
-    category_id: int,
-    name: str,
-    description: str,
-    price: int,
-    photo_id: str,
-    stock: int = 0
-) -> int:
-    """Yangi mahsulot qo'shish"""
+async def add_product(category_id: int, name: str, description: str, price: int, photo_id: str, stock: int = 0) -> int:
     async with aiosqlite.connect(DATABASE_NAME) as db:
         cursor = await db.execute("""
             INSERT INTO products (category_id, name, description, price, photo_id, stock)
@@ -201,9 +222,7 @@ async def add_product(
         await db.commit()
         return cursor.lastrowid
 
-
 async def get_products_by_category(category_id: int) -> List[dict]:
-    """Kategoriya bo'yicha mahsulotlarni olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
@@ -213,20 +232,14 @@ async def get_products_by_category(category_id: int) -> List[dict]:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
-
 async def get_product(product_id: int) -> Optional[dict]:
-    """Bitta mahsulotni olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM products WHERE id = ?", (product_id,)
-        ) as cursor:
+        async with db.execute("SELECT * FROM products WHERE id = ?", (product_id,)) as cursor:
             row = await cursor.fetchone()
             return dict(row) if row else None
 
-
 async def get_all_products() -> List[dict]:
-    """Barcha mahsulotlarni olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
@@ -238,33 +251,21 @@ async def get_all_products() -> List[dict]:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
-
 async def delete_product(product_id: int):
-    """Mahsulotni o'chirish (soft delete)"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        await db.execute(
-            "UPDATE products SET is_active = 0 WHERE id = ?", 
-            (product_id,)
-        )
+        await db.execute("UPDATE products SET is_active = 0 WHERE id = ?", (product_id,))
         await db.commit()
 
-
 async def update_product_stock(product_id: int, stock: int):
-    """Mahsulot sonini yangilash"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        await db.execute(
-            "UPDATE products SET stock = ? WHERE id = ?",
-            (stock, product_id)
-        )
+        await db.execute("UPDATE products SET stock = ? WHERE id = ?", (stock, product_id))
         await db.commit()
 
 
 # ============ SAVAT FUNKSIYALARI ============
 
 async def add_to_cart(user_id: int, product_id: int, quantity: int = 1):
-    """Savatga mahsulot qo'shish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        # Mahsulot savatda bor-yo'qligini tekshirish
         async with db.execute("""
             SELECT id, quantity FROM cart 
             WHERE user_id = ? AND product_id = ?
@@ -272,24 +273,16 @@ async def add_to_cart(user_id: int, product_id: int, quantity: int = 1):
             existing = await cursor.fetchone()
         
         if existing:
-            # Mavjud bo'lsa miqdorni oshirish
             new_quantity = existing[1] + quantity
-            await db.execute(
-                "UPDATE cart SET quantity = ? WHERE id = ?",
-                (new_quantity, existing[0])
-            )
+            await db.execute("UPDATE cart SET quantity = ? WHERE id = ?", (new_quantity, existing[0]))
         else:
-            # Yangi qo'shish
             await db.execute("""
                 INSERT INTO cart (user_id, product_id, quantity)
                 VALUES (?, ?, ?)
             """, (user_id, product_id, quantity))
-        
         await db.commit()
 
-
 async def get_cart(user_id: int) -> List[dict]:
-    """Foydalanuvchi savatini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
@@ -301,9 +294,7 @@ async def get_cart(user_id: int) -> List[dict]:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
-
 async def get_cart_total(user_id: int) -> int:
-    """Savat umumiy summasini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("""
             SELECT SUM(c.quantity * p.price) as total
@@ -314,29 +305,20 @@ async def get_cart_total(user_id: int) -> int:
             row = await cursor.fetchone()
             return row[0] or 0
 
-
 async def update_cart_quantity(cart_id: int, quantity: int):
-    """Savat miqdorini yangilash"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         if quantity <= 0:
             await db.execute("DELETE FROM cart WHERE id = ?", (cart_id,))
         else:
-            await db.execute(
-                "UPDATE cart SET quantity = ? WHERE id = ?",
-                (quantity, cart_id)
-            )
+            await db.execute("UPDATE cart SET quantity = ? WHERE id = ?", (quantity, cart_id))
         await db.commit()
 
-
 async def remove_from_cart(cart_id: int):
-    """Savatdan mahsulot o'chirish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         await db.execute("DELETE FROM cart WHERE id = ?", (cart_id,))
         await db.commit()
 
-
 async def clear_cart(user_id: int):
-    """Savatni tozalash"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         await db.execute("DELETE FROM cart WHERE user_id = ?", (user_id,))
         await db.commit()
@@ -345,38 +327,30 @@ async def clear_cart(user_id: int):
 # ============ BUYURTMA FUNKSIYALARI ============
 
 async def create_order(user_id: int, phone: str, address: str) -> int:
-    """Yangi buyurtma yaratish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        # Savat ma'lumotlarini olish
         cart_items = await get_cart(user_id)
         total = await get_cart_total(user_id)
         
         if not cart_items:
             return 0
         
-        # Buyurtma yaratish
         cursor = await db.execute("""
             INSERT INTO orders (user_id, total_amount, phone, address)
             VALUES (?, ?, ?, ?)
         """, (user_id, total, phone, address))
         order_id = cursor.lastrowid
         
-        # Buyurtma tafsilotlarini qo'shish
         for item in cart_items:
             await db.execute("""
                 INSERT INTO order_items (order_id, product_id, quantity, price)
                 VALUES (?, ?, ?, ?)
             """, (order_id, item['product_id'], item['quantity'], item['price']))
         
-        # Savatni tozalash
         await db.execute("DELETE FROM cart WHERE user_id = ?", (user_id,))
-        
         await db.commit()
         return order_id
 
-
 async def get_order(order_id: int) -> Optional[dict]:
-    """Buyurtma ma'lumotlarini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
@@ -388,9 +362,7 @@ async def get_order(order_id: int) -> Optional[dict]:
             row = await cursor.fetchone()
             return dict(row) if row else None
 
-
 async def get_order_items(order_id: int) -> List[dict]:
-    """Buyurtma mahsulotlarini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
@@ -402,9 +374,7 @@ async def get_order_items(order_id: int) -> List[dict]:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
 
-
 async def get_orders_count() -> int:
-    """Buyurtmalar sonini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("SELECT COUNT(*) FROM orders") as cursor:
             row = await cursor.fetchone()

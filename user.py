@@ -1,15 +1,15 @@
 """
 Foydalanuvchi handlerlari
-Start, yordam, asosiy menyu + MAJBURIY OBUNA + LIMIT + TO'LOV TIZIMI + ONLINE KURSLAR (YANGI)
+Start, yordam, asosiy menyu + MAJBURIY OBUNA + LIMIT + TO'LOV TIZIMI + ONLINE KURSLAR (YANGI) + REFERAL
 """
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, CommandObject
 from aiogram.fsm.context import FSMContext
 
 # Kerakli narsalarni import qilamiz
 from config import ADMIN_IDS, ADMIN_USERNAME, REQUIRED_CHANNELS 
-from database import add_user, get_user
+from database import add_user, get_user, get_user_balance, get_referrals_count # <--- YANGI FUNKSIYALAR QO'SHILDI
 import db 
 
 # 🆕 TUGMALARNI IMPORT QILAMIZ
@@ -51,19 +51,39 @@ async def check_sub_status(bot: Bot, user_id: int):
     return True
 
 # ==================================================
-# 2. START KOMANDASI
+# 2. START KOMANDASI (REFERAL BILAN)
 # ==================================================
 @router.message(CommandStart())
-async def cmd_start(message: Message, state: FSMContext, bot: Bot):
-    """Start komandasi"""
+async def cmd_start(message: Message, command: CommandObject, state: FSMContext, bot: Bot):
+    """Start komandasi referal bilan"""
     await state.clear()
     
-    # Foydalanuvchini bazaga qo'shish
+    # Referal ID ni aniqlash (agar havola orqali kirgan bo'lsa)
+    args = command.args
+    referrer_id = None
+    
+    if args and args.isdigit():
+        potential_referrer = int(args)
+        # O'ziga o'zi referal bo'lolmaydi
+        if potential_referrer != message.from_user.id:
+            referrer_id = potential_referrer
+
+    # Foydalanuvchini bazaga qo'shish (referrer_id bilan)
     await add_user(
         user_id=message.from_user.id,
         username=message.from_user.username or "",
-        full_name=message.from_user.full_name
+        full_name=message.from_user.full_name,
+        referrer_id=referrer_id  # <--- YANGI PARAMETR
     )
+    
+    # Agar referal orqali kirgan bo'lsa va yangi user bo'lsa, xabar berish
+    if referrer_id:
+        try:
+            # Eslatma: add_user ichida tekshiriladi, agar user oldin bor bo'lsa, bonus berilmaydi
+            # Lekin biz baribir xush kelibsiz deymiz.
+            pass 
+        except:
+            pass
     
     # --- OBUNANI TEKSHIRISH ---
     is_subscribed = await check_sub_status(bot, message.from_user.id)
@@ -94,6 +114,30 @@ Bu yerda siz turli xil mahsulotlarni ko'rishingiz va xarid qilishingiz mumkin.
         reply_markup=get_main_menu(is_admin),
         parse_mode="HTML"
     )
+
+# ==================================================
+# 🔥 YANGI BO'LIM (Mening Hisobim / Referal) 🔥
+# ==================================================
+@router.message(F.text == "📂 Yangi Bo'lim")
+async def new_section_handler(message: Message, bot: Bot):
+    user_id = message.from_user.id
+    balance = await get_user_balance(user_id)
+    referrals = await get_referrals_count(user_id)
+    
+    bot_username = (await bot.get_me()).username
+    ref_link = f"https://t.me/{bot_username}?start={user_id}"
+    
+    text = (
+        f"💰 <b>MENING HISOBIM</b>\n\n"
+        f"💵 <b>Balans:</b> {balance} so'm\n"
+        f"👥 <b>Taklif qilinganlar:</b> {referrals} ta\n\n"
+        f"🔗 <b>Sizning referal havolangiz:</b>\n"
+        f"<code>{ref_link}</code>\n\n"
+        f"<i>👆 Bu havolani do'stlaringizga yuboring. Har bir taklif uchun <b>50 so'm</b> oling!</i>"
+    )
+    
+    await message.answer(text, parse_mode="HTML")
+
 
 # ==================================================
 # 3. OBUNANI TEKSHIRISH TUGMASI UCHUN
