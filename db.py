@@ -84,3 +84,12 @@ class Database:
 
 # Bot ishlatishi uchun obyekt yaratamiz
 db = Database()
+# Bu kodni user ulanish (start) jarayoniga qo'shish kerak
+async def notify_inviter(bot: Bot, inviter_id: int, new_user_name: str):
+    try:
+        await bot.send_message(
+            inviter_id, 
+            f"🎁 **Yangi referal!**\n\nDo'stingiz {new_user_name} ulandi. Balansingizga 500 so'm qo'shildi! ✅"
+        )
+    except Exception:
+        pass # Agar inviter botni bloklagan bo'lsa xato bermasligi uchun

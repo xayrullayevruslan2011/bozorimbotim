@@ -379,3 +379,18 @@ async def get_orders_count() -> int:
         async with db.execute("SELECT COUNT(*) FROM orders") as cursor:
             row = await cursor.fetchone()
             return row[0]
+            # database.py fayliga qo'shing
+async def get_top_referrals():
+    async with aiosqlite.connect("bot_database.db") as db:
+        async with db.execute(
+            "SELECT full_name, referral_count FROM users ORDER BY referral_count DESC LIMIT 10"
+        ) as cursor:
+            return await cursor.fetchall()
+        # database.py fayliga qo'shing
+async def get_user_stats(user_id):
+    async with aiosqlite.connect("bot_database.db") as db:
+        async with db.execute(
+            "SELECT full_name, balance, referral_count, join_date FROM users WHERE user_id = ?", 
+            (user_id,)
+        ) as cursor:
+            return await cursor.fetchone()

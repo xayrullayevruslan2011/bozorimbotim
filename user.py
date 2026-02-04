@@ -137,6 +137,27 @@ async def new_section_handler(message: Message, bot: Bot):
     )
     
     await message.answer(text, parse_mode="HTML")
+# user.py yoki handlers qismiga
+@router.message(F.text == "👥 Referral") # Tugma nomiga moslang
+async def show_referral_info(message: Message):
+    user_id = message.from_user.id
+    # Bot username'ni config'dan yoki @bot_username ko'rinishida yozing
+    ref_link = f"https://t.me/bot_nomi?start={user_id}" 
+    
+    # Bazadan top foydalanuvchilarni olamiz
+    top_users = await get_top_referrals() 
+    
+    text = f"Sizning referal havolangiz:\n{ref_link}\n\n"
+    text += "🏆 **TOP 10 Taklif qiluvchilar:**\n\n"
+    
+    # SIZ SO'RAGAN QISM SHU YERGA TUSHADI:
+    emojis = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
+    
+    for i, (name, count) in enumerate(top_users, 0):
+        if i < len(emojis): # Xato bermasligi uchun tekshiruv
+            text += f"{emojis[i]} {name} — **{count}** ta do'st\n"
+    
+    await message.answer(text, parse_mode="Markdown")
 
 
 # ==================================================
@@ -516,3 +537,30 @@ async def process_feedback(message: Message, state: FSMContext):
 async def show_location(callback: CallbackQuery):
     await callback.message.answer_location(latitude=40.1031, longitude=65.3742)
     await callback.answer("📍 Manzilimiz")
+    # user.py fayliga qo'shing
+@router.message(F.text == "👤 Kabinet")
+async def show_profile(message: Message):
+    user_id = message.from_user.id
+    user_data = await get_user_stats(user_id)
+    
+    if user_data:
+        name, balance, ref_count, date = user_data
+        
+        # Daraja (Status) belgilash tizimi
+        status = "Yangi"
+        if ref_count > 10: status = "Kumush 🥈"
+        if ref_count > 50: status = "Oltin 🥇"
+        if ref_count > 100: status = "VIP 🔥"
+
+        text = (
+            f"👤 **Shaxsiy Kabinet**\n\n"
+            f"🆔 **ID:** `{user_id}`\n"
+            f"👤 **Ism:** {name}\n"
+            f"💰 **Balans:** {balance} so'm\n"
+            f"👥 **Takliflar:** {ref_count} ta\n"
+            f"🌟 **Status:** {status}\n"
+            f"📅 **Ro'yxatdan o'tdingiz:** {date}\n\n"
+            f"🔗 Do'stlarni taklif qilib pul ishlang!"
+        )
+        
+        await message.answer(text, parse_mode="Markdown")
