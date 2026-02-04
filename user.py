@@ -6,6 +6,7 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, CommandObject
 from aiogram.fsm.context import FSMContext
+from database import get_user_stats
 
 # Kerakli narsalarni import qilamiz
 from config import ADMIN_IDS, ADMIN_USERNAME, REQUIRED_CHANNELS 

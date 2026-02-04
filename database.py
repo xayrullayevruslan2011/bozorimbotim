@@ -2,6 +2,7 @@
 Ma'lumotlar bazasi - SQLite bilan ishlash
 Tahrirlangan: Har bir referal uchun 50 so'm bonus beriladi.
 """
+from aiogram import Bot
 import aiosqlite
 from typing import Optional, List, Tuple
 from datetime import datetime
