@@ -1,5 +1,6 @@
 import aiosqlite
 from database import DATABASE_NAME
+from aiogram import Bot
 
 class Database:
     def __init__(self):
