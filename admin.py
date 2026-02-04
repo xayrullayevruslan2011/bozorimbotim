@@ -591,5 +591,5 @@ async def collect_media(message: Message, state: FSMContext):
         fid = f"video:{message.video.file_id}" # Video IDsi
 
     m_list.append(fid)
-    await state.update_data(media_list=m_list) # media_ids ro'yxatini yangilash
     await message.answer(f"✅ Fayl olindi! Jami: {len(m_list)} ta. Yana bormi?")
+    await state.update_data(media_list=m_list) # media_ids ro'yxatini yangilash
