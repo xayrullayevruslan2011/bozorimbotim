@@ -4,7 +4,7 @@ import sys
 
 # Aiogram kutubxonasi
 from aiogram import Bot, Dispatcher
-from aiogram.client.default import DefaultBotProperty
+from aiogram.client.default import DefaultBotProperties # 's' harfi qo'shildi
 from aiogram.enums import ParseMode
 
 # Ichki fayllar
@@ -19,59 +19,45 @@ from products import router as products_router
 from cart import router as cart_router
 
 async def main():
-    # 1. Loglarni sozlash (Xatolarni ko'rish uchun)
+    # 1. Loglarni sozlash
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     )
 
-    # 2. Render serverida bot o'chib qolmasligi uchun soxta serverni yoqish
-    try:
-        keep_alive()
-        logging.info("✅ Keep-alive serveri ishga tushdi.")
-    except Exception as e:
-        logging.error(f"❌ Keep-alive xatosi: {e}")
+    # 2. Render port xatosini oldini olish uchun Flask server
+    keep_alive()
 
-    # 3. Ma'lumotlar bazasini tekshirish va yaratish
-    try:
-        await init_db()
-        logging.info("✅ Ma'lumotlar bazasi tayyor.")
-    except Exception as e:
-        logging.error(f"❌ Bazani ishga tushirishda xato: {e}")
-        return
+    # 3. Ma'lumotlar bazasini tekshirish
+    await init_db()
 
-    # 4. Bot va Dispatcher obyektlarini yaratish
-    # DefaultBotProperty orqali hamma xabarlarni HTML formatida yuborishni sozlaymiz
+    # 4. Bot va Dispatcher obyektlari
+    # 'DefaultBotProperties' (plural) ishlatildi
     bot = Bot(
         token=BOT_TOKEN, 
-        default=DefaultBotProperty(parse_mode=ParseMode.HTML)
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
     )
     dp = Dispatcher()
 
-    # 5. Routerlarni ulash (TARTIB MUHIM!)
-    # Eslatma: Admin router birinchi turishi kerak, keyin do'kon qismlari, oxirida user router
+    # 5. Routerlarni ulash
     dp.include_routers(
-        admin_router,     # Admin paneli buyruqlari
-        products_router,  # Mahsulotlarni ko'rish va varaqlash
-        cart_router,      # Savat va buyurtma berish
-        user_router       # Start va asosiy menyu
+        admin_router,
+        products_router,
+        cart_router,
+        user_router
     )
 
-    # 6. Botni ishga tushirish (Polling)
-    logging.info("🚀 Bot polling rejimida ishga tushdi!")
-    
-    # Eskidan qolib ketgan xabarlarni tozalab yuboramiz
+    # 6. Botni ishga tushirish
     await bot.delete_webhook(drop_pending_updates=True)
+    
+    logging.info("🚀 Bot Render serverida muvaffaqiyatli ishga tushdi!")
     
     try:
         await dp.start_polling(bot)
     except Exception as e:
-        logging.error(f"❌ Bot ishlashida jiddiy xato: {e}")
+        logging.error(f"❌ Bot ishlashida xato: {e}")
     finally:
         await bot.session.close()
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
-        logging.info("👋 Bot to'xtatildi.")
+    asyncio.run(main())
