@@ -136,7 +136,6 @@ async def add_default_categories():
 async def add_user(user_id: int, username: str, full_name: str, referrer_id: int = None):
     """Yangi foydalanuvchi qo'shish (Random ID va Referal bilan)"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        # Avval foydalanuvchi borligini tekshiramiz
         async with db.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,)) as cursor:
             existing_user = await cursor.fetchone()
 
@@ -145,8 +144,7 @@ async def add_user(user_id: int, username: str, full_name: str, referrer_id: int
                 UPDATE users SET username = ?, full_name = ? WHERE user_id = ?
             """, (username, full_name, user_id))
         else:
-            # Yangi foydalanuvchi
-            custom_id = random.randint(1000, 9999) # 4 xonali ID
+            custom_id = random.randint(1000, 9999) 
             reg_date = datetime.now().strftime("%Y-%m-%d %H:%M")
 
             await db.execute("""
@@ -154,7 +152,6 @@ async def add_user(user_id: int, username: str, full_name: str, referrer_id: int
                 VALUES (?, ?, ?, ?, ?, 0, ?)
             """, (user_id, custom_id, username, full_name, referrer_id, reg_date))
             
-            # Referal bonusi (50 so'm)
             if referrer_id:
                 BONUS_AMOUNT = 50 
                 await db.execute("""
@@ -176,7 +173,6 @@ async def get_user(user_id: int) -> Optional[dict]:
 
 
 async def get_all_users() -> List[int]:
-    """Barcha foydalanuvchilar ID larini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("SELECT user_id FROM users") as cursor:
             rows = await cursor.fetchall()
@@ -184,7 +180,6 @@ async def get_all_users() -> List[int]:
 
 
 async def get_users_count() -> int:
-    """Foydalanuvchilar sonini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("SELECT COUNT(*) FROM users") as cursor:
             row = await cursor.fetchone()
@@ -192,7 +187,6 @@ async def get_users_count() -> int:
 
 
 async def get_user_balance(user_id: int) -> int:
-    """Foydalanuvchi balansini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,)) as cursor:
             row = await cursor.fetchone()
@@ -200,23 +194,22 @@ async def get_user_balance(user_id: int) -> int:
 
 
 async def get_referrals_count(user_id: int) -> int:
-    """Foydalanuvchi taklif qilgan odamlar sonini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("SELECT COUNT(*) FROM users WHERE referrer_id = ?", (user_id,)) as cursor:
             row = await cursor.fetchone()
             return row[0]
 
 
-# ============ STATISTIKA VA TOP REFERALLAR (YANGI) ============
+# ============ STATISTIKA VA TOP REFERALLAR ============
 
 async def get_top_referrals():
     """Eng ko'p referal chaqirgan TOP 10 talik"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        # referrer_id bo'yicha guruhlab sanaymiz va users jadvali bilan ulaymiz
         query = """
             SELECT u.full_name, COUNT(r.user_id) as referral_count
             FROM users u
-            JOIN users r ON u.user_id = r.referrer_id
+            LEFT JOIN users r ON u.user_id = r.referrer_id
+            WHERE r.user_id IS NOT NULL
             GROUP BY u.user_id
             ORDER BY referral_count DESC
             LIMIT 10
@@ -227,13 +220,11 @@ async def get_top_referrals():
 async def get_user_stats(user_id):
     """Foydalanuvchining to'liq statistikasi"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        # Balans va sanani olamiz
         async with db.execute("SELECT full_name, balance, registered_at, custom_id FROM users WHERE user_id = ?", (user_id,)) as cursor:
             user_data = await cursor.fetchone()
         
         if not user_data: return None
         
-        # Referallar sonini alohida sanaymiz
         async with db.execute("SELECT COUNT(*) FROM users WHERE referrer_id = ?", (user_id,)) as cursor:
             ref_count = (await cursor.fetchone())[0]
             
@@ -263,7 +254,6 @@ async def delete_category(category_id: int):
         await db.execute("DELETE FROM categories WHERE id = ?", (category_id,))
         await db.commit()
 
-# YANGILANGAN: SIZE (Razmer) va STOCK (Soni) qo'shildi
 async def add_product(category_id: int, name: str, description: str, price: int, size: str, photo_id: str, stock: int = 0) -> int:
     async with aiosqlite.connect(DATABASE_NAME) as db:
         cursor = await db.execute("""
@@ -274,16 +264,14 @@ async def add_product(category_id: int, name: str, description: str, price: int,
         return cursor.lastrowid
 
 async def get_products_by_category(category_id: int) -> List[dict]:
-    """Kategoriya bo'yicha mahsulotlarni olish (Soddalashtirilgan)"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
-        # is_active tekshiruvini olib tashlaymiz (muammo shunda bo'lishi mumkin)
-        async with db.execute("""
-            SELECT * FROM products 
-            WHERE category_id = ?
-        """, (category_id,)) as cursor:
+        # is_active tekshiruvi xalaqit berayotgan bo'lishi mumkin, 
+        # shuning uchun faqat category_id bo'yicha olamiz
+        async with db.execute("SELECT * FROM products WHERE category_id = ?", (category_id,)) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
+
 async def get_product(product_id: int) -> Optional[dict]:
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
@@ -410,21 +398,17 @@ async def get_order(order_id: int) -> Optional[dict]:
             return dict(row) if row else None
 
 async def get_orders_count() -> int:
-    """Buyurtmalar sonini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("SELECT COUNT(*) FROM orders") as cursor:
             row = await cursor.fetchone()
             return row[0]
 
 async def update_order_status(order_id: int, status: str):
-    """Buyurtma statusini yangilash"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         await db.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
         await db.commit()
 
-# --- YANGI: Chek tizimi uchun ---
 async def add_order(user_id: int, full_name: str, photo_id: str, product_name: str, status: str) -> int:
-    """Chekni bazaga saqlash"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         cursor = await db.execute("""
             INSERT INTO order_checks (user_id, full_name, photo_id, product_name, status)
@@ -434,7 +418,6 @@ async def add_order(user_id: int, full_name: str, photo_id: str, product_name: s
         return cursor.lastrowid
 
 async def get_user_orders(user_id: int):
-    """Userning chek tarixini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("SELECT * FROM order_checks WHERE user_id = ? ORDER BY id DESC", (user_id,)) as cursor:
             return await cursor.fetchall()

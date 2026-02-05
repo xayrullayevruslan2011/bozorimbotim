@@ -3,7 +3,7 @@ Mahsulotlar bo'limi handlerlari
 Kategoriyalar va Mahsulotlarni ko'rish, varaqlash
 """
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery, InputMediaPhoto
+from aiogram.types import Message, CallbackQuery, InputMediaPhoto, InputMediaVideo
 from aiogram.fsm.context import FSMContext
 
 # Database va Keyboards
@@ -26,7 +26,7 @@ async def show_categories(message: Message):
     categories = await get_categories()
     
     if not categories:
-        await message.answer("🤷‍♂️ Hozircha kategoriyalar mavjud emas.")
+        await message.answer("🤷‍♂️ Hozircha kategoriyalar mavjud emas. Admin panel orqali qo'shing.")
         return
 
     await message.answer(
@@ -60,7 +60,7 @@ async def show_category_products(callback: CallbackQuery):
     products = await get_products_by_category(category_id)
     
     if not products:
-        await callback.answer("Bu kategoriyada mahsulotlar yo'q.", show_alert=True)
+        await callback.answer("⚠️ Bu kategoriyada mahsulotlar yo'q.", show_alert=True)
         return
 
     # Birinchi mahsulotni ko'rsatamiz (index=0)
@@ -72,12 +72,9 @@ async def show_product_item(callback: CallbackQuery, products: list, index: int,
     product = products[index]
     total = len(products)
     
-    # Mahsulot ma'lumotlari
-    # product dict: {id, name, price, description, photo_id, size, stock, ...}
-    
-    # Rasm ID larini ajratib olish (agar vergul bilan ko'p rasm bo'lsa)
-    photos = product['photo_id'].split(",") if product['photo_id'] else []
-    main_photo = photos[0] if photos else None # Asosiy rasm
+    # Rasm yoki Video IDlarini ajratish
+    media_ids = product['photo_id'].split(",") if product['photo_id'] else []
+    main_media = media_ids[0] if media_ids else None
     
     text = (
         f"📦 <b>{product['name']}</b>\n\n"
@@ -87,28 +84,48 @@ async def show_product_item(callback: CallbackQuery, products: list, index: int,
         f"💰 <b>Narxi:</b> {product['price']:,} so'm"
     )
     
-    # Tugmalar (Savatga qo'shish va Oldinga/Orqaga)
     keyboard = get_products_navigation(category_id, index, total, product['id'])
     
-    # Xabarni yangilash (Edit)
-    try:
-        if main_photo:
-            # Agar oldingi xabar rasm bo'lsa -> EditMedia
-            if callback.message.photo:
-                media = InputMediaPhoto(media=main_photo, caption=text, parse_mode="HTML")
-                await callback.message.edit_media(media=media, reply_markup=keyboard)
-            # Agar oldingi xabar tekst bo'lsa (Kategoriyalar) -> Delete & Send Photo
-            else:
-                await callback.message.delete()
-                await callback.message.answer_photo(photo=main_photo, caption=text, reply_markup=keyboard, parse_mode="HTML")
+    # Media turi va ID sini aniqlash (photo:ID formatidan tozalash)
+    file_id = None
+    media_type = "photo"
+    
+    if main_media:
+        if ":" in main_media:
+            media_type, file_id = main_media.split(":", 1)
         else:
-            # Rasmsiz mahsulot
+            file_id = main_media
+    
+    try:
+        if file_id:
+            # Media obyektini yaratish
+            if media_type == "video":
+                media = InputMediaVideo(media=file_id, caption=text, parse_mode="HTML")
+            else:
+                media = InputMediaPhoto(media=file_id, caption=text, parse_mode="HTML")
+
+            # Xabarni tahrirlash (agar rasm/video bo'lsa)
+            if callback.message.photo or callback.message.video:
+                await callback.message.edit_media(media=media, reply_markup=keyboard)
+            else:
+                # Agar oldingi xabar tekst bo'lsa, yangi yuboramiz
+                await callback.message.delete()
+                if media_type == "video":
+                    await callback.message.answer_video(video=file_id, caption=text, reply_markup=keyboard, parse_mode="HTML")
+                else:
+                    await callback.message.answer_photo(photo=file_id, caption=text, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            # Rasmsiz mahsulot bo'lsa
             await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
-    except Exception as e:
-        # Xatolik bo'lsa yangi xabar yuboramiz (xavfsizlik uchun)
+            
+    except Exception:
+        # Har qanday xatolikda yangidan yuborish (xavfsiz yo'l)
         await callback.message.delete()
-        if main_photo:
-            await callback.message.answer_photo(photo=main_photo, caption=text, reply_markup=keyboard, parse_mode="HTML")
+        if file_id:
+            if media_type == "video":
+                await callback.message.answer_video(video=file_id, caption=text, reply_markup=keyboard, parse_mode="HTML")
+            else:
+                await callback.message.answer_photo(photo=file_id, caption=text, reply_markup=keyboard, parse_mode="HTML")
         else:
             await callback.message.answer(text, reply_markup=keyboard, parse_mode="HTML")
 
@@ -129,11 +146,10 @@ async def navigate_products(callback: CallbackQuery):
         await callback.answer("Mahsulotlar topilmadi.")
         return
         
-    # Indeks chegarasini tekshirish
     if 0 <= new_index < len(products):
         await show_product_item(callback, products, new_index, category_id)
     else:
-        await callback.answer("Boshqa mahsulot yo'q.")
+        await callback.answer("Boshqa mahsulot yo'q.", show_alert=False)
 
 
 # =========================================================
@@ -146,7 +162,5 @@ async def add_product_to_cart(callback: CallbackQuery):
     product_id = int(callback.data.split("_")[2])
     user_id = callback.from_user.id
     
-    # Bazaga qo'shish
     await add_to_cart(user_id, product_id, 1)
-    
     await callback.answer("✅ Savatga qo'shildi!", show_alert=True)
