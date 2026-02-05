@@ -395,3 +395,10 @@ async def get_user_stats(user_id):
             (user_id,)
         ) as cursor:
             return await cursor.fetchone()
+        # ... (tepadagi kodlarga tegmang) ...
+
+async def update_order_status(order_id: int, status: str):
+    """Buyurtma statusini yangilash (confirmed/cancelled)"""
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        await db.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
+        await db.commit()

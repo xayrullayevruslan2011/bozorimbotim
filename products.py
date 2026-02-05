@@ -1,175 +1,117 @@
 """
 Mahsulotlar handlerlari
-Kategoriyalar, mahsulotlarni ko'rish va RAZMER TANLASH (Kiyim + Oyoq kiyim)
+Kategoriyalar, mahsulotlarni ko'rish va KENGAYTIRILGAN RAZMER TANLASH (XS-5XL, 25-49)
 """
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.fsm.context import FSMContext
-
-# database dan kerakli funksiyalarni chaqiramiz
-from database import (
-    get_categories, 
-    get_products_by_category,
-    get_product,
-    get_cart,
-    add_to_cart
-)
-from keyboards import (
-    get_categories_keyboard,
-    get_products_navigation,
-    get_main_menu,
-    get_back_button
-)
+from database import get_categories, get_products_by_category, add_to_cart
+from keyboards import get_categories_keyboard, get_products_navigation
 from config import ADMIN_IDS
 
 router = Router()
 
+# ==========================================
+# 1. KATEGORIYA VA MAHSULOTLARNI KO'RSATISH
+# ==========================================
+
 @router.message(F.text == "🛍 Mahsulotlar")
 async def show_categories(message: Message):
-    """Kategoriyalarni ko'rsatish"""
     categories = await get_categories()
-    
     if not categories:
-        await message.answer(
-            "😔 Hozircha kategoriyalar mavjud emas.",
-            reply_markup=get_main_menu(message.from_user.id in ADMIN_IDS)
-        )
+        await message.answer("😔 Hozircha kategoriyalar mavjud emas.")
         return
-    
-    await message.answer(
-        "📁 <b>Kategoriyani tanlang:</b>",
-        reply_markup=get_categories_keyboard(categories),
-        parse_mode="HTML"
-    )
+    await message.answer("📁 <b>Kategoriyani tanlang:</b>", reply_markup=get_categories_keyboard(categories), parse_mode="HTML")
 
 @router.callback_query(F.data == "back_to_categories")
 async def back_to_categories(callback: CallbackQuery):
-    """Kategoriyalarga qaytish"""
     categories = await get_categories()
-    
-    await callback.message.edit_text(
-        "📁 <b>Kategoriyani tanlang:</b>",
-        reply_markup=get_categories_keyboard(categories),
-        parse_mode="HTML"
-    )
-    await callback.answer()
+    await callback.message.edit_text("📁 <b>Kategoriyani tanlang:</b>", reply_markup=get_categories_keyboard(categories), parse_mode="HTML")
 
 @router.callback_query(F.data.startswith("category_"))
 async def show_category_products(callback: CallbackQuery):
-    """Kategoriya mahsulotlarini ko'rsatish"""
-    parts = callback.data.split("_")
-    category_id = int(parts[1])
-    
+    category_id = int(callback.data.split("_")[1])
     products = await get_products_by_category(category_id)
-    
     if not products:
         await callback.answer("😔 Bu kategoriyada mahsulotlar yo'q", show_alert=True)
         return
-    
-    # Birinchi mahsulotni ko'rsatish
     await show_product(callback, products, 0, category_id)
-    await callback.answer()
 
 async def show_product(callback: CallbackQuery, products: list, index: int, category_id: int):
-    """Mahsulotni ko'rsatish"""
     product = products[index]
     total = len(products)
     
-    product_text = f"""
-📦 <b>{product['name']}</b>
-
-📝 {product['description'] or 'Tavsif mavjud emas'}
-
-💰 Narxi: <b>{product['price']:,} so'm</b>
-📊 Mavjud: {product['stock']} dona
-"""
-    
-    keyboard = get_products_navigation(
-        category_id=category_id,
-        current_index=index,
-        total=total,
-        product_id=product['id']
+    text = (
+        f"📦 <b>{product['name']}</b>\n\n"
+        f"📝 {product['description'] or 'Tavsif yoq'}\n\n"
+        f"💰 Narxi: <b>{product['price']:,} so'm</b>\n"
+        f"📊 Omborda: {product['stock']} dona"
     )
     
-    try:
-        if product['photo_id']:
-            await callback.message.delete()
-            await callback.message.answer_photo(
-                photo=product['photo_id'],
-                caption=product_text,
-                reply_markup=keyboard,
-                parse_mode="HTML"
-            )
-        else:
-            await callback.message.edit_text(
-                product_text,
-                reply_markup=keyboard,
-                parse_mode="HTML"
-            )
-    except Exception:
-        try:
-            await callback.message.edit_caption(caption=product_text, reply_markup=keyboard, parse_mode="HTML")
-        except:
-            pass # Xatolik bo'lsa indamaymiz
+    keyboard = get_products_navigation(category_id, index, total, product['id'])
+    
+    if product['photo_id']:
+        await callback.message.delete()
+        await callback.message.answer_photo(photo=product['photo_id'], caption=text, reply_markup=keyboard, parse_mode="HTML")
+    else:
+        await callback.message.edit_text(text, reply_markup=keyboard, parse_mode="HTML")
 
 @router.callback_query(F.data.startswith("prod_nav_"))
 async def navigate_products(callback: CallbackQuery):
-    """Mahsulotlar bo'ylab harakatlanish"""
     parts = callback.data.split("_")
     category_id = int(parts[2])
     index = int(parts[3])
-    
     products = await get_products_by_category(category_id)
-    if products:
-        await show_product(callback, products, index, category_id)
-    await callback.answer()
+    if products: await show_product(callback, products, index, category_id)
 
-@router.callback_query(F.data == "go_shopping")
-async def go_shopping(callback: CallbackQuery):
-    categories = await get_categories()
-    await callback.message.answer(
-        "📁 <b>Kategoriyani tanlang:</b>",
-        reply_markup=get_categories_keyboard(categories),
-        parse_mode="HTML"
-    )
-    await callback.answer()
 
 # ==========================================
-# 🔥 YANGI QO'SHILGAN: RAZMERLAR TIZIMI 🔥
+# 🔥 YANGILANGAN: RAZMER TANLASH TIZIMI 🔥
 # ==========================================
 
 @router.callback_query(F.data.startswith("add_cart_"))
 async def ask_product_size(callback: CallbackQuery):
     """Savatga qo'shishdan oldin razmer so'rash"""
-    # callback.data masalan: "add_cart_15" bo'ladi
     product_id = int(callback.data.split("_")[2])
     
-    # Razmer tugmalari
-    clothing_sizes = ["S", "M", "L", "XL", "XXL"]
-    shoe_sizes = ["38", "39", "40", "41", "42"]
+    # 1. KIYIM RAZMERLARI (XS dan 5XL gacha)
+    clothing_sizes = ["XS", "S", "M", "L", "XL", "2XL", "3XL", "4XL", "5XL"]
     
+    # 2. OYOQ KIYIM RAZMERLARI (25 dan 49 gacha)
+    shoe_sizes = [str(i) for i in range(25, 50)] # 25, 26, ..., 49
+
     buttons = []
-    # 1. Kiyim razmerlari (bir qatorda)
+    
+    # --- Kiyimlar sarlavhasi ---
+    buttons.append([InlineKeyboardButton(text="👕 KIYIMLAR UCHUN:", callback_data="ignore")])
+    
+    # Kiyimlarni 5 tadan qatorga joylash
     row = []
     for size in clothing_sizes:
         row.append(InlineKeyboardButton(text=size, callback_data=f"size_{product_id}_{size}"))
-    buttons.append(row)
+        if len(row) == 5: 
+            buttons.append(row)
+            row = []
+    if row: buttons.append(row)
+
+    # --- Oyoq kiyimlar sarlavhasi ---
+    buttons.append([InlineKeyboardButton(text="👟 OYOQ KIYIMLAR UCHUN:", callback_data="ignore")])
     
-    # 2. Poyabzal razmerlari (bir qatorda)
+    # Oyoq kiyimlarni 5 tadan qatorga joylash
     row = []
     for size in shoe_sizes:
         row.append(InlineKeyboardButton(text=size, callback_data=f"size_{product_id}_{size}"))
-    buttons.append(row)
-    
-    # 3. Bekor qilish
+        if len(row) == 5: 
+            buttons.append(row)
+            row = []
+    if row: buttons.append(row)
+
+    # Bekor qilish tugmasi
     buttons.append([InlineKeyboardButton(text="❌ Bekor qilish", callback_data="delete_msg")])
     
-    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-    
     await callback.message.answer(
-        "📏 <b>Iltimos, razmerni tanlang:</b>\n"
-        "<i>(Kiyimlar yoki Poyabzallar uchun)</i>",
-        reply_markup=keyboard,
+        "📏 <b>Iltimos, o'lchamni tanlang:</b>\n"
+        "<i>Mahsulot turiga qarab mos razmerni bosing 👇</i>",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons),
         parse_mode="HTML"
     )
     await callback.answer()
@@ -181,13 +123,16 @@ async def add_product_with_size(callback: CallbackQuery):
     product_id = int(parts[1])
     size = parts[2]
     
-    # Bazaga qo'shamiz
+    # Mahsulotni savatga qo'shish
     await add_to_cart(callback.from_user.id, product_id, 1)
     
     await callback.message.delete()
-    await callback.answer(f"✅ {size}-razmer savatga qo'shildi!", show_alert=True)
+    await callback.answer(f"✅ {size}-razmer tanlandi va savatga qo'shildi!", show_alert=True)
 
 @router.callback_query(F.data == "delete_msg")
 async def delete_msg(callback: CallbackQuery):
     await callback.message.delete()
     
+@router.callback_query(F.data == "ignore")
+async def ignore_click(callback: CallbackQuery):
+    await callback.answer()

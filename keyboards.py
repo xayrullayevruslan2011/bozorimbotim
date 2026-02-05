@@ -41,7 +41,7 @@ def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
         KeyboardButton(text="⚙️ Sozlamalar")
     )
     
-    # 4-qator: Ma'lumot va Yangi Bo'lim
+    # 4-qator: Ma'lumot va Yangi Bo'lim (KABINET)
     builder.row(
         KeyboardButton(text="ℹ️ Ma'lumot"),
         KeyboardButton(text="📂 Yangi Bo'lim") 
@@ -52,6 +52,23 @@ def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
         builder.row(KeyboardButton(text="👨‍💼 Admin Panel"))
     
     return builder.as_markup(resize_keyboard=True)
+
+
+# ============ YANGI BO'LIM (KABINET) UCHUN TUGMALAR ============
+def get_earn_menu() -> InlineKeyboardMarkup:
+    """Kabinet ichidagi menyu"""
+    builder = InlineKeyboardBuilder()
+    # 1. Pul ishlash va Statistika
+    builder.row(
+        InlineKeyboardButton(text="💰 Pul ishlash", callback_data="earn_money"),
+        InlineKeyboardButton(text="🏆 TOP 10", callback_data="top_10")
+    )
+    # 2. Pul yechish
+    builder.row(InlineKeyboardButton(text="📤 Pulni yechib olish", callback_data="withdraw_money"))
+    # 3. Yopish
+    builder.row(InlineKeyboardButton(text="❌ Yopish", callback_data="delete_message"))
+    
+    return builder.as_markup()
 
 
 # ============ SAYTGA O'TISH TUGMASI (KURSLAR) ============
@@ -72,44 +89,6 @@ def get_limit_keyboard() -> InlineKeyboardMarkup:
         InlineKeyboardButton(
             text="🚀 Limitni tekshirish", 
             web_app=WebAppInfo(url=NASIYA_URL) 
-        )
-    )
-    return builder.as_markup()
-
-
-# ============ NASIYA VA KIYIMLAR UCHUN TUGMALAR ============
-
-def get_buy_button(product_name: str, price: int) -> InlineKeyboardMarkup:
-    """UNIVERSAL NASIYA TUGMASI"""
-    full_url = f"{NASIYA_URL}?name={product_name}&price={price}"
-    builder = InlineKeyboardBuilder()
-    builder.row(
-        InlineKeyboardButton(
-            text="💳 Nasiyaga olish", 
-            web_app=WebAppInfo(url=full_url)
-        )
-    )
-    return builder.as_markup()
-
-def get_clothing_keyboard() -> InlineKeyboardMarkup:
-    """Jinsi va Bryuk uchun maxsus tugmalar"""
-    builder = InlineKeyboardBuilder()
-    
-    # 1. Oversize Jeans
-    url_jeans = f"{NASIYA_URL}?name=Oversize Jeans&price=170000"
-    builder.row(
-        InlineKeyboardButton(
-            text="👖 Oversize Jeans - Nasiya", 
-            web_app=WebAppInfo(url=url_jeans)
-        )
-    )
-    
-    # 2. Oversize Bryuk
-    url_bryuk = f"{NASIYA_URL}?name=Oversize Bryuk&price=90000"
-    builder.row(
-        InlineKeyboardButton(
-            text="👖 Oversize Bryuk - Nasiya", 
-            web_app=WebAppInfo(url=url_bryuk)
         )
     )
     return builder.as_markup()
@@ -287,6 +266,15 @@ def get_admin_check_keyboard(order_id: int) -> InlineKeyboardMarkup:
     )
     return builder.as_markup()
 
+def get_admin_approval_keyboard(order_id: int) -> InlineKeyboardMarkup:
+    """Admin uchun chekni tasdiqlash tugmalari (Savatdagi buyurtma uchun)"""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"approve_order_{order_id}"),
+        InlineKeyboardButton(text="❌ Rad etish", callback_data=f"reject_order_{order_id}")
+    )
+    return builder.as_markup()
+
 def get_user_orders_navigation(current_index: int, total_orders: int) -> InlineKeyboardMarkup:
     """'Mening buyurtmalarim' bo'limida varaqlash"""
     builder = InlineKeyboardBuilder()
@@ -341,13 +329,3 @@ def get_payment_actions_keyboard(price_text: str) -> InlineKeyboardMarkup:
     builder.row(InlineKeyboardButton(text="❌ To'lovni bekor qilish", callback_data="delete_message"))
 
     return builder.as_markup()
-# keyboards.py fayliga qo'shing
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-
-def get_earn_menu():
-    buttons = [
-        [InlineKeyboardButton(text="💰 Pul ishlash", callback_data="earn_money")],
-        [InlineKeyboardButton(text="🏆 TOP 10 Talik", callback_data="top_10")],
-        [InlineKeyboardButton(text="🛍 Mahsulotlar (Pul yechish)", callback_data="withdraw_products")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=buttons)

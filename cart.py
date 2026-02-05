@@ -1,6 +1,6 @@
 """
 Savat handlerlari
-Savatga qo'shish, o'chirish, buyurtma berish
+Savatga qo'shish, o'chirish, buyurtma berish va TO'LOV (Copy function)
 """
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
@@ -29,10 +29,14 @@ from config import ADMIN_IDS
 
 router = Router()
 
+# Karta ma'lumotlari
+CARD_NUMBER = "4073420067355457"
+CARD_OWNER = "Holboyeva Gulzebo"
+
 
 @router.callback_query(F.data.startswith("add_cart_"))
 async def add_to_cart_handler(callback: CallbackQuery):
-    """Savatga qo'shish"""
+    """Savatga qo'shish (Oddiy usul)"""
     product_id = int(callback.data.split("_")[2])
     user_id = callback.from_user.id
     
@@ -93,7 +97,6 @@ async def cart_increase(callback: CallbackQuery):
             await update_cart_quantity(cart_id, item['quantity'] + 1)
             break
     
-    # Savatni qayta ko'rsatish
     await update_cart_message(callback)
 
 
@@ -113,7 +116,6 @@ async def cart_decrease(callback: CallbackQuery):
                 await update_cart_quantity(cart_id, new_quantity)
             break
     
-    # Savatni qayta ko'rsatish
     await update_cart_message(callback)
 
 
@@ -124,8 +126,6 @@ async def cart_remove(callback: CallbackQuery):
     
     await remove_from_cart(cart_id)
     await callback.answer("🗑 O'chirildi")
-    
-    # Savatni qayta ko'rsatish
     await update_cart_message(callback)
 
 
@@ -177,11 +177,11 @@ async def update_cart_message(callback: CallbackQuery):
     await callback.answer()
 
 
-# ============ BUYURTMA BERISH ============
+# ============ BUYURTMA BERISH (CHECKOUT) ============
 
 @router.callback_query(F.data == "checkout")
 async def checkout(callback: CallbackQuery, state: FSMContext):
-    """Buyurtmani rasmiylashtirish"""
+    """Buyurtmani rasmiylashtirish - 1. Telefon so'rash"""
     user_id = callback.from_user.id
     cart_items = await get_cart(user_id)
     
@@ -190,13 +190,14 @@ async def checkout(callback: CallbackQuery, state: FSMContext):
         return
     
     await callback.message.edit_text(
-        "📱 <b>Telefon raqamingizni yuboring:</b>\n\n"
-        "Quyidagi tugmani bosing yoki qo'lda kiriting:",
+        "📱 <b>Bog'lanish uchun telefon raqamingizni yuboring:</b>\n\n"
+        "Pastdagi tugmani bosing 👇 yoki qo'lda yozing (+998...)",
         parse_mode="HTML"
     )
     
+    # Telefon so'rash tugmasi
     await callback.message.answer(
-        "📱 Telefon raqamingizni yuboring:",
+        "📱 Telefon raqamni yuborish:",
         reply_markup=get_phone_keyboard()
     )
     
@@ -209,34 +210,27 @@ async def process_phone_contact(message: Message, state: FSMContext):
     """Telefon raqamni kontaktdan olish"""
     phone = message.contact.phone_number
     await state.update_data(phone=phone)
-    
-    await message.answer(
-        "📍 <b>Yetkazib berish manzilini kiriting:</b>\n\n"
-        "Masalan: Toshkent sh., Chilonzor tumani, 1-kvartal, 5-uy",
-        reply_markup=get_cancel_button(),
-        parse_mode="HTML"
-    )
-    await state.set_state(OrderState.address)
+    await ask_address(message, state)
 
 
 @router.message(OrderState.phone, F.text)
 async def process_phone_text(message: Message, state: FSMContext):
     """Telefon raqamni matndan olish"""
     phone = message.text
-    
-    # Telefon raqamni tekshirish
-    if not phone.replace("+", "").replace(" ", "").isdigit():
-        await message.answer(
-            "❌ Noto'g'ri format! Iltimos, telefon raqamingizni kiriting:",
-            reply_markup=get_phone_keyboard()
-        )
+    # Oddiy tekshiruv
+    if not any(char.isdigit() for char in phone):
+        await message.answer("❌ Iltimos, to'g'ri telefon raqam kiriting!")
         return
-    
+
     await state.update_data(phone=phone)
-    
+    await ask_address(message, state)
+
+
+async def ask_address(message: Message, state: FSMContext):
+    """Manzil so'rash funksiyasi"""
     await message.answer(
-        "📍 <b>Yetkazib berish manzilini kiriting:</b>\n\n"
-        "Masalan: Toshkent sh., Chilonzor tumani, 1-kvartal, 5-uy",
+        "📍 <b>Yetkazib berish manzilini yozing:</b>\n"
+        "(Viloyat, shahar, ko'cha va uy raqami)",
         reply_markup=get_cancel_button(),
         parse_mode="HTML"
     )
@@ -245,18 +239,17 @@ async def process_phone_text(message: Message, state: FSMContext):
 
 @router.message(OrderState.address)
 async def process_address(message: Message, state: FSMContext):
-    """Manzilni qabul qilish"""
+    """Manzilni qabul qilish va tasdiqlash"""
     address = message.text
     await state.update_data(address=address)
     
-    # Buyurtma ma'lumotlarini ko'rsatish
+    # Buyurtma ma'lumotlarini yig'ish
     data = await state.get_data()
     user_id = message.from_user.id
-    
     cart_items = await get_cart(user_id)
     total = await get_cart_total(user_id)
     
-    order_text = "📋 <b>Buyurtmangizni tasdiqlang:</b>\n\n"
+    order_text = "📋 <b>Buyurtmani tasdiqlang:</b>\n\n"
     
     for item in cart_items:
         item_total = item['price'] * item['quantity']
@@ -277,7 +270,7 @@ async def process_address(message: Message, state: FSMContext):
 
 @router.callback_query(OrderState.confirm, F.data == "confirm_order")
 async def confirm_order(callback: CallbackQuery, state: FSMContext):
-    """Buyurtmani tasdiqlash"""
+    """Buyurtmani tasdiqlash va saqlash"""
     data = await state.get_data()
     user_id = callback.from_user.id
     
@@ -292,15 +285,17 @@ async def confirm_order(callback: CallbackQuery, state: FSMContext):
         # Adminga xabar yuborish
         await notify_admin_new_order(callback.bot, order_id, callback.from_user, data)
 
+        # Foydalanuvchiga muvaffaqiyat xabari va KARTA (Copy qilish uchun)
         await callback.message.edit_text(
-            f"✅ <b>Buyurtmangiz qabul qilindi!</b>\n\n"
+            f"✅ <b>Buyurtmangiz qabul qilindi!</b>\n"
             f"🆔 Buyurtma raqami: <code>#{order_id}</code>\n\n"
             f"➖➖➖➖➖➖➖➖➖➖\n"
-            f"💳 <b>To'lov uchun:</b>\n"
-            f"💳 <b>4073 4200 6735 5457</b> (Holboyeva G.)\n"
-            f"📝 Iltimos, to'lov chekini @Ruslanbek20119 ga yuboring.\n"
+            f"💳 <b>TO'LOV UCHUN KARTA:</b>\n"
+            f"<code>{CARD_NUMBER}</code>\n"
+            f"👤 <b>{CARD_OWNER}</b>\n"
             f"➖➖➖➖➖➖➖➖➖➖\n\n"
-            f"Tez orada siz bilan bog'lanamiz! 📞",
+            f"<i>👆 Karta raqam nusxalash uchun ustiga bosing!</i>\n"
+            f"📝 Iltimos, to'lov chekini @Ruslanbek20119 ga yuboring.",
             parse_mode="HTML"
         )
     else:

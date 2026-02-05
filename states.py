@@ -3,11 +3,22 @@ FSM States - Bot holatlari
 Mahsulot qo'shish, buyurtma berish va boshqa jarayonlar uchun
 """
 from aiogram.fsm.state import State, StatesGroup
+
 class ContactState(StatesGroup):
+    """Aloqa holatlari"""
     message = State()
 
 class CheckoutState(StatesGroup):
+    """Online Kurslar uchun to'lov qilish holati"""
     waiting_for_receipt = State()
+
+class OrderState(StatesGroup):
+    """Savatdan Buyurtma berish holatlari"""
+    phone = State()             # Telefon raqam
+    address = State()           # Manzil
+    confirm = State()           # Tasdiqlash
+    waiting_for_receipt = State() # <--- YANGI: Chek rasmini kutish
+
 class AddProductState(StatesGroup):
     """Mahsulot qo'shish holatlari"""
     category = State()      # Kategoriyani tanlash
@@ -22,30 +33,17 @@ class AddCategoryState(StatesGroup):
     name = State()          # Kategoriya nomi
     emoji = State()         # Emoji
 
-class OrderState(StatesGroup):
-    """Buyurtma berish holatlari"""
-    phone = State()         # Telefon raqam
-    address = State()       # Manzil
-    confirm = State()       # Tasdiqlash
-
 class BroadcastState(StatesGroup):
     """Xabar yuborish holatlari"""
     message = State()       # Xabar matni
     confirm = State()       # Tasdiqlash
 
-class ContactState(StatesGroup):
-    """Aloqa holatlari"""
-    message = State()       # Xabar
-
-class CheckoutState(StatesGroup):
-    """To'lov qilish holati"""
-    waiting_for_receipt = State() # Foydalanuvchi chek tashlashi kerak
-
 class AdminState(StatesGroup):
     """Admin buyurtmani tasdiqlash holati"""
     waiting_for_track = State() # Admin trek kod yozishi kerak
-    # states.py ichiga qo'shing
+
 class AddProduct(StatesGroup):
+    """Qo'shimcha mahsulot holatlari (Zaxira)"""
     name = State()
     price = State()
-    media = State() # Bu yerda rasm va videolar yig'iladi
+    media = State()
