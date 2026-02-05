@@ -1,18 +1,34 @@
 """
-Foydalanuvchi handlerlari
-Start, yordam, asosiy menyu + MAJBURIY OBUNA + LIMIT + TO'LOV TIZIMI + ONLINE KURSLAR + REFERAL KABINET
+Foydalanuvchi handlerlari (TO'LIQ VA KENGAYTIRILGAN)
+Eski 'db' olib tashlandi -> Yangi 'database.py' ga ulandi.
+Barcha funksiyalar:
+1. Start va Majburiy obuna
+2. Yangi Kabinet (ID, Sana, Statistika)
+3. Online Kurslar va To'lov (Chek yuborish)
+4. Mening buyurtmalarim (Tarix)
+5. Aloqa va Limitlar
 """
+import asyncio
 from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from aiogram.filters import CommandStart, CommandObject
 from aiogram.fsm.context import FSMContext
 
-# Kerakli narsalarni import qilamiz
+# Config ma'lumotlari
 from config import ADMIN_IDS, ADMIN_USERNAME, REQUIRED_CHANNELS 
-from database import add_user, get_user, get_user_balance, get_referrals_count
-import db 
 
-# TUGMALARNI IMPORT QILAMIZ
+# DATABASE IMPORTLARI (Faqat 'database.py' dan)
+from database import (
+    add_user, 
+    get_user, 
+    get_user_balance, 
+    get_referrals_count,
+    add_order,          # Chek saqlash uchun
+    get_user_orders,    # Buyurtmalar tarixi uchun
+    get_top_referrals   # Top 10 talik uchun
+)
+
+# KLAVIATURALAR (TUGMALAR)
 from keyboards import (
     get_main_menu, 
     get_contact_keyboard, 
@@ -22,18 +38,20 @@ from keyboards import (
     get_user_orders_navigation,
     get_admin_check_keyboard,
     get_tariffs_keyboard,           
-    get_payment_actions_keyboard
+    get_payment_actions_keyboard,
+    get_cabinet_keyboard # Yangi kabinet tugmalari
 )
 from states import ContactState, CheckoutState 
 
 router = Router()
 
-# Karta ma'lumotlari
+# Karta ma'lumotlari (To'lov uchun)
 CARD_NUMBER = "4073420067355457"
 CARD_OWNER = "Holboyeva Gulzebo"
 
+
 # ==================================================
-# 1. A'ZOLIKNI TEKSHIRISH
+# 1. OBUNA TEKSHIRISH (HELPER FUNCTION)
 # ==================================================
 async def check_sub_status(bot: Bot, user_id: int):
     """Foydalanuvchi kanallarga a'zo ekanligini tekshiradi"""
@@ -49,12 +67,13 @@ async def check_sub_status(bot: Bot, user_id: int):
             continue 
     return True
 
+
 # ==================================================
-# 2. START KOMANDASI (REFERAL BILAN)
+# 2. START KOMANDASI
 # ==================================================
 @router.message(CommandStart())
 async def cmd_start(message: Message, command: CommandObject, state: FSMContext, bot: Bot):
-    """Start komandasi referal bilan"""
+    """Botni ishga tushirish"""
     await state.clear()
     
     # Referal ID ni aniqlash
@@ -74,7 +93,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
         referrer_id=referrer_id
     )
     
-    # --- OBUNANI TEKSHIRISH ---
+    # Obunani tekshirish
     is_subscribed = await check_sub_status(bot, message.from_user.id)
     
     if not is_subscribed:
@@ -86,7 +105,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
         )
         return
 
-    # --- AGAR A'ZO BO'LSA ---
+    # Agar a'zo bo'lsa, menyuni ochamiz
     is_admin = message.from_user.id in ADMIN_IDS
     
     welcome_text = f"""
@@ -94,7 +113,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
 
 Assalomu alaykum, <b>{message.from_user.full_name}</b>! 
 
-Bu yerda siz turli xil mahsulotlarni ko'rishingiz va xarid qilishingiz mumkin.
+Bu yerda siz turli xil mahsulotlarni ko'rishingiz, xarid qilishingiz va pul ishlashingiz mumkin.
 
 📱 Quyidagi tugmalardan birini tanlang:
 """
@@ -104,89 +123,10 @@ Bu yerda siz turli xil mahsulotlarni ko'rishingiz va xarid qilishingiz mumkin.
         parse_mode="HTML"
     )
 
-# ==================================================
-# 🔥 YANGI BO'LIM (Mening Hisobim / Referal) 🔥
-# ==================================================
-@router.message(F.text == "📂 Yangi Bo'lim")
-async def new_section_handler(message: Message, bot: Bot):
-    user_id = message.from_user.id
-    
-    # Bazadan ma'lumotlarni olamiz
-    balance = await get_user_balance(user_id)
-    referrals = await get_referrals_count(user_id)
-    user_info = await get_user(user_id)
-    
-    # Referal link yaratish
-    bot_username = (await bot.get_me()).username
-    ref_link = f"https://t.me/{bot_username}?start={user_id}"
-    
-    # Statusni aniqlash
-    status = "Yangi 🐣"
-    if referrals > 10: status = "Kumush 🥈"
-    if referrals > 50: status = "Oltin 🥇"
-    if referrals > 100: status = "VIP 🔥"
 
-    text = (
-        f"👤 <b>SHAXSIY KABINET</b>\n\n"
-        f"🆔 <b>ID:</b> <code>{user_id}</code>\n"
-        f"👤 <b>Ism:</b> {user_info.get('full_name', 'Foydalanuvchi')}\n"
-        f"💰 <b>Balans:</b> {balance} so'm\n"
-        f"👥 <b>Taklif qilinganlar:</b> {referrals} ta\n"
-        f"🌟 <b>Status:</b> {status}\n\n"
-        f"🔗 <b>Sizning referal havolangiz:</b>\n"
-        f"<code>{ref_link}</code>\n\n"
-        f"<i>👆 Bu havolani do'stlaringizga yuboring. Har bir taklif uchun <b>50 so'm</b> oling!</i>"
-    )
-    
-    # Ichki tugmalar (Callback)
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📤 Pulni yechib olish", callback_data="withdraw_money")],
-        [InlineKeyboardButton(text="📊 Batafsil statistika", callback_data="my_stats")],
-        [InlineKeyboardButton(text="❌ Yopish", callback_data="delete_message")]
-    ])
-    
-    await message.answer(text, reply_markup=keyboard, parse_mode="HTML")
-
-
-# --- YANGI BO'LIM TUGMALARI UCHUN HANDLERLAR ---
-
-@router.callback_query(F.data == "withdraw_money")
-async def withdraw_money_handler(callback: CallbackQuery):
-    """Pul yechish tugmasi bosilganda"""
-    user_id = callback.from_user.id
-    balance = await get_user_balance(user_id)
-    MIN_WITHDRAW = 5000  # Minimal yechish summasi
-    
-    if balance < MIN_WITHDRAW:
-        await callback.answer(
-            f"❌ Hisobingizda yetarli mablag' yo'q!\n\nMinimal yechish summasi: {MIN_WITHDRAW} so'm.\nSizda: {balance} so'm", 
-            show_alert=True
-        )
-    else:
-        await callback.answer("✅ So'rovingiz qabul qilindi! Admin tez orada aloqaga chiqadi.", show_alert=True)
-        # Kelajakda bu yerda adminga xabar yuborish kodini qo'shish mumkin
-
-@router.callback_query(F.data == "my_stats")
-async def my_stats_handler(callback: CallbackQuery):
-    """Statistika tugmasi bosilganda"""
-    user_id = callback.from_user.id
-    referrals = await get_referrals_count(user_id)
-    
-    await callback.answer(
-        f"📊 Siz jami {referrals} ta do'stingizni taklif qildingiz.\nFaolligingiz uchun rahmat! 😊", 
-        show_alert=True
-    )
-
-@router.callback_query(F.data == "delete_message")
-async def delete_msg_handler(callback: CallbackQuery):
-    await callback.message.delete()
-
-
-# ==================================================
-# 3. OBUNANI TEKSHIRISH TUGMASI UCHUN
-# ==================================================
 @router.callback_query(F.data == "check_subscription")
 async def check_btn(callback: CallbackQuery, bot: Bot):
+    """Obunani tekshirish tugmasi"""
     is_subscribed = await check_sub_status(bot, callback.from_user.id)
     
     if is_subscribed:
@@ -203,179 +143,138 @@ async def check_btn(callback: CallbackQuery, bot: Bot):
 
 
 # ==================================================
-# 🔥 LIMIT OLISH HANLDERI 🔥
+# 🔥 YANGI BO'LIM (SHAXSIY KABINET) 🔥
 # ==================================================
-@router.message(F.text == "💰 Limit olish")
-async def limit_handler(message: Message):
-    text = (
-        "<b>🚀 Nasiya Limitini Tekshirish</b>\n\n"
-        "Marhamat, pastdagi tugmani bosib, o'z limitingizni tekshirib oling! 👇"
-    )
-    await message.answer(text, reply_markup=get_limit_keyboard())
-
-
-# ==================================================
-# 🔥 TO'LOV VA CHEK YUBORISH TIZIMI (UMUMIY) 🔥
-# ==================================================
-
-# 1. "Buyurtmani rasmiylashtirish" (Savatdan)
-@router.callback_query(F.data == "checkout")
-async def start_checkout_process(call: CallbackQuery, state: FSMContext):
-    await call.message.delete()
-    text = (
-        f"💳 <b>To'lov uchun karta:</b>\n"
-        f"<code>{CARD_NUMBER}</code> ({CARD_OWNER})\n\n"
-        "Iltimos, to'lovni amalga oshiring va <b>chek rasmini</b> shu yerga yuboring:" 
-    )
-    await call.message.answer(text, parse_mode="HTML", reply_markup=get_payment_cancel_keyboard())
-    
-    # Botni "Rasm kutish" rejimiga o'tkazamiz va mahsulot nomini saqlab qo'yamiz
-    await state.update_data(product_name="Savatdagi mahsulotlar")
-    await state.set_state(CheckoutState.waiting_for_receipt)
-
-# 2. To'lov paytida "Bekor qilish" bosilsa
-@router.message(CheckoutState.waiting_for_receipt, F.text == "❌ To'lovni bekor qilish")
-async def cancel_checkout(message: Message, state: FSMContext):
-    await state.clear()
-    is_admin = message.from_user.id in ADMIN_IDS
-    await message.answer("❌ To'lov bekor qilindi.", reply_markup=get_main_menu(is_admin))
-
-# 3. Foydalanuvchi CHEK (Rasm) yuborganda
-@router.message(CheckoutState.waiting_for_receipt, F.photo)
-async def process_receipt(message: Message, state: FSMContext, bot: Bot):
-    photo_id = message.photo[-1].file_id
+@router.message(F.text == "📂 Yangi Bo'lim")
+async def new_section_handler(message: Message, bot: Bot):
+    """Kabinetni ko'rsatish"""
     user_id = message.from_user.id
-    full_name = message.from_user.full_name
     
-    # State dan ma'lumotni olamiz (qaysi mahsulot yoki tarif uchun to'lov qilingan)
-    data = await state.get_data()
-    product_name = data.get("product_name", "Noma'lum to'lov")
-
-    # Bazaga yozamiz
-    order_id = await db.db.add_order(user_id, full_name, photo_id, product_name, "Hisoblanmoqda...")
+    # Bazadan ma'lumotlarni olamiz
+    user = await get_user(user_id)
+    referrals = await get_referrals_count(user_id)
     
-    # Foydalanuvchiga javob
-    is_admin = message.from_user.id in ADMIN_IDS
-    await message.answer(
-        "✅ <b>To'lov cheki qabul qilindi!</b>\n\nAdmin tekshirib, tez orada javob beradi.", 
-        reply_markup=get_main_menu(is_admin),
-        parse_mode="HTML"
-    )
-    await state.clear()
-
-    # Adminga xabar yuborish
-    caption = (
-        f"🆕 <b>Yangi to'lov!</b> #{order_id}\n"
-        f"👤 Mijoz: {full_name}\n"
-        f"🆔 ID: <code>{user_id}</code>\n"
-        f"🛍 Buyurtma: <b>{product_name}</b>\n"
-        f"📝 Holat: Tekshirilmoqda..."
-    )
-    
-    # Barcha adminlarga yuborish
-    for admin_id in ADMIN_IDS:
-        try:
-            await bot.send_photo(
-                chat_id=admin_id,
-                photo=photo_id,
-                caption=caption,
-                parse_mode="HTML",
-                reply_markup=get_admin_check_keyboard(order_id)
-            )
-        except Exception:
-            pass
-
-
-# ==================================================
-# 🔥 MENING BUYURTMALARIM 🔥
-# ==================================================
-@router.message(F.text == "📦 Mening buyurtmalarim")
-async def show_my_orders(message: Message):
-    # Bazadan shu odamning buyurtmalarini olamiz
-    orders = await db.db.get_user_orders(message.from_user.id)
-    
-    if not orders:
-        await message.answer("🤷‍♂️ Sizda hali buyurtmalar yo'q.")
+    if not user:
+        await message.answer("⚠️ Ma'lumot topilmadi. Qaytadan /start ni bosing.")
         return
 
-    # Birinchi (eng oxirgi) buyurtmani ko'rsatamiz
-    current_index = 0
-    total_orders = len(orders)
-    order = orders[current_index]
+    # Ma'lumotlarni formatlash
+    balance = user.get('balance', 0)
+    custom_id = user.get('custom_id', '----')
+    reg_date = user.get('registered_at', 'Noma\'lum')
     
-    msg = (
-        f"📦 <b>Buyurtma #{order[0]}</b>\n"
-        f"🛍 Mahsulot: {order[4]}\n"
-        f"ℹ️ Holat: {order[7]}\n\n"
-        f"🔢 <b>Trek raqam:</b> <code>{order[6]}</code>"
+    # Referal havola
+    bot_username = (await bot.get_me()).username
+    ref_link = f"https://t.me/{bot_username}?start={user_id}"
+    
+    # Statusni aniqlash (daraja)
+    status = "Yangi 🐣"
+    if referrals > 10: status = "Kumush 🥈"
+    if referrals > 50: status = "Oltin 🥇"
+    if referrals > 100: status = "VIP 🔥"
+
+    text = (
+        f"👤 <b>SHAXSIY KABINET</b>\n\n"
+        f"🆔 <b>Mening ID:</b> <code>{custom_id}</code>\n"
+        f"📅 <b>Ro'yxatdan o'tgan sana:</b> {reg_date}\n\n"
+        f"💰 <b>Balans:</b> {balance:,} so'm\n"
+        f"👥 <b>Taklif qilinganlar:</b> {referrals} ta\n"
+        f"🌟 <b>Status:</b> {status}\n\n"
+        f"🔗 <b>Sizning referal havolangiz:</b>\n"
+        f"<code>{ref_link}</code>\n\n"
+        f"<i>👆 Bu havolani do'stlaringizga yuboring. Har bir taklif uchun <b>50 so'm</b> oling!</i>"
     )
     
-    from aiogram.types import InputMediaPhoto
-    # Rasm bo'lsa rasm bilan, bo'lmasa matn
-    if order[3]:
-        await message.answer_photo(
-            photo=order[3],
-            caption=msg,
-            parse_mode="HTML",
-            reply_markup=get_user_orders_navigation(current_index, total_orders)
+    # Yangi kabinet tugmalari (Pul ishlash, TOP 10, va h.k.)
+    await message.answer(text, reply_markup=get_cabinet_keyboard(), parse_mode="HTML")
+
+
+# --- KABINET TUGMALARI UCHUN HANDLERLAR ---
+
+@router.callback_query(F.data == "earn_money")
+async def earn_money_handler(callback: CallbackQuery, bot: Bot):
+    """Pul ishlash bo'limi"""
+    user_id = callback.from_user.id
+    bot_username = (await bot.get_me()).username
+    ref_link = f"https://t.me/{bot_username}?start={user_id}"
+    
+    await callback.message.edit_text(
+        f"💰 <b>PUL ISHLASH</b>\n\n"
+        f"Siz har bir taklif qilgan do'stingiz uchun <b>50 so'm</b> bonus olasiz.\n\n"
+        f"🔗 <b>Havolangiz:</b>\n<code>{ref_link}</code>\n\n"
+        f"Do'stlaringizga ulashing va pul ishlang!",
+        reply_markup=get_cabinet_keyboard(),
+        parse_mode="HTML"
+    )
+
+@router.callback_query(F.data == "withdraw_money")
+async def withdraw_money_handler(callback: CallbackQuery):
+    """Pul yechish tugmasi"""
+    user_id = callback.from_user.id
+    balance = await get_user_balance(user_id)
+    MIN_WITHDRAW = 5000  # Minimal summa
+    
+    if balance < MIN_WITHDRAW:
+        await callback.answer(
+            f"❌ Hisobingizda yetarli mablag' yo'q!\n\nMinimal yechish summasi: {MIN_WITHDRAW} so'm.\nSizda: {balance} so'm", 
+            show_alert=True
         )
     else:
-        await message.answer(msg, parse_mode="HTML", reply_markup=get_user_orders_navigation(current_index, total_orders))
+        await callback.answer("✅ So'rovingiz qabul qilindi! Admin tez orada aloqaga chiqadi.", show_alert=True)
+        # Bu yerda adminga xabar yuborish funksiyasini qo'shish mumkin
 
-# Buyurtmalarni varaqlash (Oldingi / Keyingi)
-@router.callback_query(F.data.startswith("my_orders_"))
-async def navigate_orders(callback: CallbackQuery):
-    try:
-        action = callback.data.split("_")[2] # prev yoki next
-        current_index = int(callback.data.split("_")[3])
+@router.callback_query(F.data == "my_stats")
+async def my_stats_handler(callback: CallbackQuery):
+    """Statistika tugmasi"""
+    user_id = callback.from_user.id
+    referrals = await get_referrals_count(user_id)
+    
+    await callback.answer(
+        f"📊 Siz jami {referrals} ta do'stingizni taklif qildingiz.\nFaolligingiz uchun rahmat! 😊", 
+        show_alert=True
+    )
+
+@router.callback_query(F.data == "top_10")
+async def top_10_handler(callback: CallbackQuery):
+    """TOP 10 Reyting"""
+    # Bazadan TOP 10 ni olamiz
+    top_users = await get_top_referrals()
+    
+    if not top_users:
+        await callback.answer("Hozircha reyting bo'sh.", show_alert=True)
+        return
+
+    text = "🏆 <b>TOP 10 FAOLLAR REYTINGI</b>\n\n"
+    
+    medals = ["🥇", "🥈", "🥉"]
+    
+    for i, user in enumerate(top_users):
+        name = user[0] # full_name
+        count = user[1] # referral_count
         
-        orders = await db.db.get_user_orders(callback.from_user.id)
-        total_orders = len(orders)
-
-        # Indeksni hisoblash
-        if action == "prev":
-            new_index = max(0, current_index - 1)
-        elif action == "next":
-            new_index = min(total_orders - 1, current_index + 1)
-        else:
-            new_index = current_index
-
-        if new_index == current_index:
-            await callback.answer()
-            return
-
-        order = orders[new_index]
-        msg = (
-            f"📦 <b>Buyurtma #{order[0]}</b>\n"
-            f"🛍 Mahsulot: {order[4]}\n"
-            f"ℹ️ Holat: {order[7]}\n\n"
-            f"🔢 <b>Trek raqam:</b> <code>{order[6]}</code>"
-        )
+        prefix = medals[i] if i < 3 else f"{i+1}."
+        text += f"{prefix} <b>{name}</b> — {count} ta\n"
         
-        from aiogram.types import InputMediaPhoto
-        if order[3]:
-            media = InputMediaPhoto(media=order[3], caption=msg, parse_mode="HTML")
-            await callback.message.edit_media(
-                media=media,
-                reply_markup=get_user_orders_navigation(new_index, total_orders)
-            )
-        else:
-            await callback.message.edit_text(msg, parse_mode="HTML", reply_markup=get_user_orders_navigation(new_index, total_orders))
-            
-    except Exception:
-        await callback.answer("Xatolik", show_alert=True)
+    await callback.message.edit_text(text, reply_markup=get_cabinet_keyboard(), parse_mode="HTML")
 
-@router.callback_query(F.data == "close_my_orders")
-async def close_orders_window(callback: CallbackQuery):
+@router.callback_query(F.data == "exchange_money")
+async def exchange_money_handler(callback: CallbackQuery):
+    """Mahsulotga almashtirish"""
+    await callback.answer("🎁 Tez orada bu yerda ballaringizga mahsulot olishingiz mumkin bo'ladi!", show_alert=True)
+
+@router.callback_query(F.data == "delete_message")
+async def delete_msg_handler(callback: CallbackQuery):
+    """Xabarni o'chirish"""
     await callback.message.delete()
 
 
 # ==================================================
-# 🔥 ONLINE KURSLAR (SAYTSIZ - TELEGRAM ICHIDA) 🔥
+# 🔥 ONLINE KURSLAR VA TO'LOV TIZIMI 🔥
 # ==================================================
 
 @router.message(F.text == "🎓 Online Kurslar")
 async def show_courses_handler(message: Message):
+    """Kurslar menyusini ko'rsatish"""
     text = (
         "👋 SALOM, QADRLI DO‘ST! 🤝\n\n"
         "🇨🇳 XITOY SAVDO KURSIMIZ 3 ta qulay tarif asosida o‘rgatiladi 👇\n\n"
@@ -410,6 +309,7 @@ async def show_courses_handler(message: Message):
 
 @router.callback_query(F.data.startswith("tariff_"))
 async def select_tariff_handler(call: CallbackQuery, state: FSMContext):
+    """Tarif tanlanganda"""
     tariff_code = call.data.split("_")[1]
     
     price = "0"
@@ -445,12 +345,14 @@ async def select_tariff_handler(call: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "copy_card_number")
 async def copy_card_handler(call: CallbackQuery):
+    """Karta raqamini nusxalash"""
     await call.message.answer(f"<code>{CARD_NUMBER}</code>", parse_mode="HTML")
     await call.answer("Karta raqami yuborildi!", show_alert=True)
 
 
 @router.callback_query(F.data.startswith("copy_amount_"))
 async def copy_amount_handler(call: CallbackQuery):
+    """Summani nusxalash"""
     amount = call.data.split("_")[2]
     clean_amount = amount.replace(" ", "")
     await call.message.answer(f"<code>{clean_amount}</code>", parse_mode="HTML")
@@ -459,6 +361,7 @@ async def copy_amount_handler(call: CallbackQuery):
 
 @router.callback_query(F.data == "check_payment")
 async def check_payment_handler(call: CallbackQuery, state: FSMContext):
+    """To'lovni tekshirish (Rasm so'rash)"""
     await call.message.delete()
     await state.set_state(CheckoutState.waiting_for_receipt)
     
@@ -470,9 +373,168 @@ async def check_payment_handler(call: CallbackQuery, state: FSMContext):
     await call.answer()
 
 
+@router.message(CheckoutState.waiting_for_receipt, F.photo)
+async def process_receipt(message: Message, state: FSMContext, bot: Bot):
+    """Chek rasmini qabul qilish va saqlash"""
+    photo_id = message.photo[-1].file_id
+    user_id = message.from_user.id
+    full_name = message.from_user.full_name
+    
+    # State dan ma'lumotni olamiz
+    data = await state.get_data()
+    product_name = data.get("product_name", "Noma'lum to'lov")
+
+    # Bazaga yozamiz (add_order funksiyasi orqali)
+    order_id = await add_order(
+        user_id=user_id, 
+        full_name=full_name, 
+        photo_id=photo_id, 
+        product_name=product_name, 
+        status="pending"
+    )
+    
+    # Foydalanuvchiga javob
+    is_admin = message.from_user.id in ADMIN_IDS
+    await message.answer(
+        "✅ <b>To'lov cheki qabul qilindi!</b>\n\nAdmin tekshirib, tez orada javob beradi.", 
+        reply_markup=get_main_menu(is_admin),
+        parse_mode="HTML"
+    )
+    await state.clear()
+
+    # Adminga xabar yuborish
+    caption = (
+        f"🆕 <b>Yangi to'lov!</b> #{order_id}\n"
+        f"👤 Mijoz: {full_name}\n"
+        f"🆔 ID: <code>{user_id}</code>\n"
+        f"🛍 Buyurtma: <b>{product_name}</b>\n"
+        f"📝 Holat: Tekshirilmoqda..."
+    )
+    
+    for admin_id in ADMIN_IDS:
+        try:
+            await bot.send_photo(
+                chat_id=admin_id,
+                photo=photo_id,
+                caption=caption,
+                parse_mode="HTML",
+                reply_markup=get_admin_check_keyboard(order_id)
+            )
+        except Exception:
+            pass
+
+
+@router.message(CheckoutState.waiting_for_receipt, F.text == "❌ To'lovni bekor qilish")
+async def cancel_checkout(message: Message, state: FSMContext):
+    """To'lovni bekor qilish"""
+    await state.clear()
+    is_admin = message.from_user.id in ADMIN_IDS
+    await message.answer("❌ To'lov bekor qilindi.", reply_markup=get_main_menu(is_admin))
+
+
+# ==================================================
+# 🔥 MENING BUYURTMALARIM (TARIX) 🔥
+# ==================================================
+@router.message(F.text == "📦 Mening buyurtmalarim")
+async def show_my_orders(message: Message):
+    """Buyurtmalar tarixini ko'rsatish"""
+    # Bazadan shu odamning buyurtmalarini olamiz
+    orders = await get_user_orders(message.from_user.id)
+    
+    if not orders:
+        await message.answer("🤷‍♂️ Sizda hali buyurtmalar yo'q.")
+        return
+
+    # Birinchi (eng oxirgi) buyurtmani ko'rsatamiz
+    current_index = 0
+    await show_order_item(message, orders, current_index)
+
+
+async def show_order_item(message, orders, index):
+    """Bitta buyurtmani ko'rsatish funksiyasi"""
+    order = orders[index]
+    total_orders = len(orders)
+    
+    # Bazadagi ustunlar tartibi: (id, user_id, full_name, photo_id, product_name, status, track_code, created_at)
+    # order[0] -> id
+    # order[3] -> photo_id
+    # order[4] -> product_name
+    # order[5] -> status
+    # order[6] -> track_code
+    
+    status_text = order[5]
+    if status_text == "confirmed": status_text = "✅ Tasdiqlangan"
+    elif status_text == "cancelled": status_text = "❌ Bekor qilingan"
+    elif status_text == "pending": status_text = "⏳ Kutilmoqda"
+
+    track = order[6] if order[6] else "Hali berilmagan"
+
+    caption = (
+        f"📦 <b>Buyurtma #{order[0]}</b>\n"
+        f"🛍 Mahsulot: {order[4]}\n"
+        f"ℹ️ Holat: {status_text}\n"
+        f"🔢 <b>Trek raqam:</b> <code>{track}</code>\n"
+        f"📅 Sana: {order[7]}"
+    )
+    
+    keyboard = get_user_orders_navigation(index, total_orders)
+    
+    # Rasm bilan chiqarish
+    if isinstance(message, CallbackQuery):
+        if order[3]:
+            media = InputMediaPhoto(media=order[3], caption=caption, parse_mode="HTML")
+            await message.message.edit_media(media=media, reply_markup=keyboard)
+        else:
+            await message.message.edit_text(caption, reply_markup=keyboard, parse_mode="HTML")
+    else:
+        if order[3]:
+            await message.answer_photo(photo=order[3], caption=caption, reply_markup=keyboard, parse_mode="HTML")
+        else:
+            await message.answer(caption, reply_markup=keyboard, parse_mode="HTML")
+
+
+@router.callback_query(F.data.startswith("my_orders_"))
+async def navigate_orders(callback: CallbackQuery):
+    """Buyurtmalarni varaqlash"""
+    action = callback.data.split("_")[2] # prev yoki next
+    current_index = int(callback.data.split("_")[3])
+    
+    orders = await get_user_orders(callback.from_user.id)
+    if not orders:
+        await callback.answer("Buyurtmalar topilmadi")
+        return
+
+    # Indeksni hisoblash
+    if action == "prev":
+        new_index = max(0, current_index - 1)
+    elif action == "next":
+        new_index = min(len(orders) - 1, current_index + 1)
+    else:
+        new_index = current_index
+
+    if new_index == current_index:
+        await callback.answer()
+        return
+
+    await show_order_item(callback, orders, new_index)
+
+
+@router.callback_query(F.data == "close_my_orders")
+async def close_orders_window(callback: CallbackQuery):
+    await callback.message.delete()
+
+
 # ==================================================
 # QOLGAN HANDLERLAR
 # ==================================================
+
+@router.message(F.text == "💰 Limit olish")
+async def limit_handler(message: Message):
+    text = (
+        "<b>🚀 Nasiya Limitini Tekshirish</b>\n\n"
+        "Marhamat, pastdagi tugmani bosib, o'z limitingizni tekshirib oling! 👇"
+    )
+    await message.answer(text, reply_markup=get_limit_keyboard(), parse_mode="HTML")
 
 @router.message(F.text == "🔙 Orqaga")
 async def go_back(message: Message, state: FSMContext):
@@ -498,7 +560,7 @@ async def show_info(message: Message):
 ✅ Admin bilan bog'lanish
 
 📞 Murojaat uchun: {ADMIN_USERNAME}
-🔄 Bot versiyasi: 1.0
+🔄 Bot versiyasi: 2.0 (To'liq yangilangan)
 """
     await message.answer(info_text, parse_mode="HTML")
 
