@@ -1,13 +1,14 @@
 """
-Klaviaturalar - TO'LIQ VERSIYA (Barcha tugmalar)
-Circular Import xatosi tuzatildi.
-Ichida:
+Klaviaturalar - TO'LIQ VA KENGAYTIRILGAN VERSIYA
+Barcha funksiyalar jamlangan:
 1. Asosiy menyu
 2. Kabinet va Referallar
 3. Online Kurslar va To'lov
-4. Admin Panel
+4. Admin Panel (To'liq)
 5. Do'kon (Kategoriya, Mahsulot, Savat)
-6. Qo'shimcha (Nasiya, Kiyimlar, Aloqa)
+6. Buyurtmalar tarixi
+7. Qo'shimcha (Nasiya, Kiyimlar, Aloqa)
+8. Yordamchi tugmalar
 """
 from aiogram.types import (
     ReplyKeyboardMarkup, 
@@ -100,27 +101,35 @@ def get_cabinet_keyboard() -> InlineKeyboardMarkup:
 def get_tariffs_keyboard() -> InlineKeyboardMarkup:
     """Kurs tariflarini tanlash"""
     builder = InlineKeyboardBuilder()
+    
+    # Tariflar
     builder.row(InlineKeyboardButton(text="🔵 Start Tarifi (50 000 so'm)", callback_data="tariff_start"))
     builder.row(InlineKeyboardButton(text="🟠 Pro Tarifi (70 000 so'm)", callback_data="tariff_pro"))
     builder.row(InlineKeyboardButton(text="🟣 VIP Tarifi (100 000 so'm)", callback_data="tariff_vip"))
+    
+    # Yopish
     builder.row(InlineKeyboardButton(text="❌ Yopish", callback_data="delete_message"))
     return builder.as_markup()
 
 def get_payment_actions_keyboard(price_text: str) -> InlineKeyboardMarkup:
     """To'lov qilish menyusi"""
     builder = InlineKeyboardBuilder()
+    
     # 1. Tekshirish
     builder.row(InlineKeyboardButton(text="♻️ To'lovni tekshirish", callback_data="check_payment"))
+    
     # 2. Karta nusxalash
     builder.row(InlineKeyboardButton(text="💳 Karta raqamni nusxalash", callback_data="copy_card_number"))
+    
     # 3. Summa nusxalash
     builder.row(InlineKeyboardButton(text=f"💰 Summani nusxalash ({price_text})", callback_data=f"copy_amount_{price_text}"))
+    
     # 4. Bekor qilish
     builder.row(InlineKeyboardButton(text="❌ Bekor qilish", callback_data="delete_message"))
     return builder.as_markup()
 
 def get_payment_cancel_keyboard() -> ReplyKeyboardMarkup:
-    """Rasm yuborishni bekor qilish"""
+    """Rasm yuborishni bekor qilish (Reply)"""
     builder = ReplyKeyboardBuilder()
     builder.row(KeyboardButton(text="❌ To'lovni bekor qilish"))
     return builder.as_markup(resize_keyboard=True)
@@ -282,6 +291,15 @@ def get_user_orders_navigation(current_index: int, total_orders: int) -> InlineK
     builder.row(InlineKeyboardButton(text="❌ Yopish", callback_data="close_my_orders"))
     return builder.as_markup()
 
+def get_confirm_order_keyboard() -> InlineKeyboardMarkup:
+    """Buyurtmani tasdiqlash tugmasi (Savatdan) - SHU YERDA XATO BO'LGAN EDI"""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(text="✅ Tasdiqlash", callback_data="confirm_order"),
+        InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_order")
+    )
+    return builder.as_markup()
+
 
 # =========================================================
 # 6. QO'SHIMCHA TUGMALAR (Limit, Sayt, Aloqa)
@@ -359,7 +377,7 @@ def get_phone_keyboard() -> ReplyKeyboardMarkup:
 
 
 # =========================================================
-# 8. MAXSUS KIYIMLAR VA NASIYA TUGMALARI (Siz so'ragan)
+# 8. MAXSUS KIYIMLAR VA NASIYA TUGMALARI
 # =========================================================
 
 def get_buy_button(product_name: str, price: int) -> InlineKeyboardMarkup:
