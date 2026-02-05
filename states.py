@@ -9,7 +9,7 @@ class ContactState(StatesGroup):
     message = State()
 
 class CheckoutState(StatesGroup):
-    """Online Kurslar uchun to'lov qilish holati"""
+    """Online Kurslar va To'lov uchun"""
     waiting_for_receipt = State()
 
 class OrderState(StatesGroup):
@@ -17,16 +17,17 @@ class OrderState(StatesGroup):
     phone = State()             # Telefon raqam
     address = State()           # Manzil
     confirm = State()           # Tasdiqlash
-    waiting_for_receipt = State() # <--- YANGI: Chek rasmini kutish
+    waiting_for_receipt = State() # Chek rasmini kutish
 
 class AddProductState(StatesGroup):
-    """Mahsulot qo'shish holatlari"""
-    category = State()      # Kategoriyani tanlash
-    name = State()          # Mahsulot nomi
-    description = State()   # Tavsif
-    price = State()         # Narx
-    photo = State()         # Rasm
-    stock = State()         # Ombordagi soni
+    """Mahsulot qo'shish holatlari (Admin)"""
+    category = State()      # 1. Kategoriyani tanlash
+    name = State()          # 2. Mahsulot nomi
+    price = State()         # 3. Narx
+    size = State()          # 4. Razmer (Yangi qo'shildi) ✅
+    description = State()   # 5. Tavsif
+    photo = State()         # 6. Rasm/Video
+    stock = State()         # 7. Ombordagi soni (Yangi qo'shildi) ✅
 
 class AddCategoryState(StatesGroup):
     """Kategoriya qo'shish holatlari"""
@@ -41,9 +42,3 @@ class BroadcastState(StatesGroup):
 class AdminState(StatesGroup):
     """Admin buyurtmani tasdiqlash holati"""
     waiting_for_track = State() # Admin trek kod yozishi kerak
-
-class AddProduct(StatesGroup):
-    """Qo'shimcha mahsulot holatlari (Zaxira)"""
-    name = State()
-    price = State()
-    media = State()
