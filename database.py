@@ -274,15 +274,16 @@ async def add_product(category_id: int, name: str, description: str, price: int,
         return cursor.lastrowid
 
 async def get_products_by_category(category_id: int) -> List[dict]:
+    """Kategoriya bo'yicha mahsulotlarni olish (Soddalashtirilgan)"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
+        # is_active tekshiruvini olib tashlaymiz (muammo shunda bo'lishi mumkin)
         async with db.execute("""
             SELECT * FROM products 
-            WHERE category_id = ? AND is_active = 1
+            WHERE category_id = ?
         """, (category_id,)) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
-
 async def get_product(product_id: int) -> Optional[dict]:
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
