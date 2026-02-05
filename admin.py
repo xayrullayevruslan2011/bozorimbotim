@@ -258,7 +258,7 @@ async def select_product_category(callback: CallbackQuery, state: FSMContext):
 # --- MULTIMEDIA (RASM/VIDEO) YIG'ISH QISMI ---
 
 # 1. Admin rasm yoki video yuborganida ishlaydi
-@router.message(AddProductState.waiting_for_photo, F.photo | F.video)
+@router.message(AddProductState.photo, F.photo | F.video)
 async def handle_multimedia_upload(message: Message, state: FSMContext):
     data = await state.get_data()
     # media_list - bu rasm/videolarni yig'ib boruvchi ro'yxat
