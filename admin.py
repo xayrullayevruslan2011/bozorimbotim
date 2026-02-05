@@ -279,7 +279,7 @@ async def handle_multimedia_upload(message: Message, state: FSMContext):
     )
 
 # 2. Admin '✅ TAYYOR' deb yozganida bazaga saqlaydi
-@router.message(AddProductState.waiting_for_photo, F.text == "✅ TAYYOR")
+@router.message(AddProductState.photo, F.text == "✅ TAYYOR")
 async def finish_product_creation(message: Message, state: FSMContext):
     data = await state.get_data()
     m_list = data.get("media_list", [])
