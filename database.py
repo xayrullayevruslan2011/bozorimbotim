@@ -1,9 +1,9 @@
 """
 Ma'lumotlar bazasi - SQLite bilan ishlash
-Tahrirlangan: Har bir referal uchun 50 so'm bonus beriladi.
+Tahrirlangan: Razmer, Custom ID, Statistika va Chek tizimi qo'shildi.
 """
-from aiogram import Bot
 import aiosqlite
+import random
 from typing import Optional, List, Tuple
 from datetime import datetime
 
@@ -13,10 +13,11 @@ DATABASE_NAME = "market_bot.db"
 async def init_db():
     """Ma'lumotlar bazasini yaratish va jadvallarni boshlash"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        # Foydalanuvchilar jadvali
+        # 1. Foydalanuvchilar jadvali (custom_id qo'shildi)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
+                custom_id INTEGER,
                 username TEXT,
                 full_name TEXT,
                 phone TEXT,
@@ -26,7 +27,7 @@ async def init_db():
             )
         """)
         
-        # Kategoriyalar jadvali
+        # 2. Kategoriyalar jadvali
         await db.execute("""
             CREATE TABLE IF NOT EXISTS categories (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,7 +36,7 @@ async def init_db():
             )
         """)
         
-        # Mahsulotlar jadvali
+        # 3. Mahsulotlar jadvali (size qo'shildi)
         await db.execute("""
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,6 +44,7 @@ async def init_db():
                 name TEXT NOT NULL,
                 description TEXT,
                 price INTEGER NOT NULL,
+                size TEXT,
                 photo_id TEXT,
                 stock INTEGER DEFAULT 0,
                 is_active INTEGER DEFAULT 1,
@@ -51,7 +53,7 @@ async def init_db():
             )
         """)
         
-        # Savat jadvali
+        # 4. Savat jadvali
         await db.execute("""
             CREATE TABLE IF NOT EXISTS cart (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,7 +65,7 @@ async def init_db():
             )
         """)
         
-        # Buyurtmalar jadvali
+        # 5. Buyurtmalar jadvali
         await db.execute("""
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +78,7 @@ async def init_db():
             )
         """)
         
-        # Buyurtma tafsilotlari
+        # 6. Buyurtma tafsilotlari
         await db.execute("""
             CREATE TABLE IF NOT EXISTS order_items (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -88,10 +90,22 @@ async def init_db():
                 FOREIGN KEY (product_id) REFERENCES products(id)
             )
         """)
+
+        # 7. Cheklar jadvali (To'lovni tekshirish uchun)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS order_checks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                full_name TEXT,
+                photo_id TEXT,
+                product_name TEXT,
+                status TEXT DEFAULT 'Tekshirilmoqda',
+                track_code TEXT,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
         
         await db.commit()
-        
-        # Boshlang'ich kategoriyalarni qo'shish
         await add_default_categories()
 
 
@@ -117,30 +131,32 @@ async def add_default_categories():
         await db.commit()
 
 
-# ============ FOYDALANUVCHI FUNKSIYALARI (O'ZGARTIRILDI) ============
+# ============ FOYDALANUVCHI FUNKSIYALARI ============
 
 async def add_user(user_id: int, username: str, full_name: str, referrer_id: int = None):
-    """Yangi foydalanuvchi qo'shish va referal tizimi"""
+    """Yangi foydalanuvchi qo'shish (Random ID va Referal bilan)"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         # Avval foydalanuvchi borligini tekshiramiz
         async with db.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,)) as cursor:
             existing_user = await cursor.fetchone()
 
         if existing_user:
-            # Agar foydalanuvchi allaqachon bor bo'lsa, faqat ma'lumotlarini yangilaymiz
             await db.execute("""
                 UPDATE users SET username = ?, full_name = ? WHERE user_id = ?
             """, (username, full_name, user_id))
         else:
-            # Yangi foydalanuvchi qo'shish
+            # Yangi foydalanuvchi
+            custom_id = random.randint(1000, 9999) # 4 xonali ID
+            reg_date = datetime.now().strftime("%Y-%m-%d %H:%M")
+
             await db.execute("""
-                INSERT INTO users (user_id, username, full_name, referrer_id, balance)
-                VALUES (?, ?, ?, ?, 0)
-            """, (user_id, username, full_name, referrer_id))
+                INSERT INTO users (user_id, custom_id, username, full_name, referrer_id, balance, registered_at)
+                VALUES (?, ?, ?, ?, ?, 0, ?)
+            """, (user_id, custom_id, username, full_name, referrer_id, reg_date))
             
-            # Agar uni kimdir taklif qilgan bo'lsa, taklif qilganga 50 SO'M bonus beramiz
+            # Referal bonusi (50 so'm)
             if referrer_id:
-                BONUS_AMOUNT = 50  # <--- MANA SHU YER 50 SO'M QILINDI
+                BONUS_AMOUNT = 50 
                 await db.execute("""
                     UPDATE users SET balance = balance + ? WHERE user_id = ?
                 """, (BONUS_AMOUNT, referrer_id))
@@ -191,7 +207,40 @@ async def get_referrals_count(user_id: int) -> int:
             return row[0]
 
 
-# ============ KATEGORIYA VA MAHSULOTLAR (OZGARISHSIZ) ============
+# ============ STATISTIKA VA TOP REFERALLAR (YANGI) ============
+
+async def get_top_referrals():
+    """Eng ko'p referal chaqirgan TOP 10 talik"""
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        # referrer_id bo'yicha guruhlab sanaymiz va users jadvali bilan ulaymiz
+        query = """
+            SELECT u.full_name, COUNT(r.user_id) as referral_count
+            FROM users u
+            JOIN users r ON u.user_id = r.referrer_id
+            GROUP BY u.user_id
+            ORDER BY referral_count DESC
+            LIMIT 10
+        """
+        async with db.execute(query) as cursor:
+            return await cursor.fetchall()
+
+async def get_user_stats(user_id):
+    """Foydalanuvchining to'liq statistikasi"""
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        # Balans va sanani olamiz
+        async with db.execute("SELECT full_name, balance, registered_at, custom_id FROM users WHERE user_id = ?", (user_id,)) as cursor:
+            user_data = await cursor.fetchone()
+        
+        if not user_data: return None
+        
+        # Referallar sonini alohida sanaymiz
+        async with db.execute("SELECT COUNT(*) FROM users WHERE referrer_id = ?", (user_id,)) as cursor:
+            ref_count = (await cursor.fetchone())[0]
+            
+        return (user_data[0], user_data[1], ref_count, user_data[2])
+
+
+# ============ KATEGORIYA VA MAHSULOTLAR ============
 
 async def get_categories() -> List[dict]:
     async with aiosqlite.connect(DATABASE_NAME) as db:
@@ -214,12 +263,13 @@ async def delete_category(category_id: int):
         await db.execute("DELETE FROM categories WHERE id = ?", (category_id,))
         await db.commit()
 
-async def add_product(category_id: int, name: str, description: str, price: int, photo_id: str, stock: int = 0) -> int:
+# YANGILANGAN: SIZE (Razmer) va STOCK (Soni) qo'shildi
+async def add_product(category_id: int, name: str, description: str, price: int, size: str, photo_id: str, stock: int = 0) -> int:
     async with aiosqlite.connect(DATABASE_NAME) as db:
         cursor = await db.execute("""
-            INSERT INTO products (category_id, name, description, price, photo_id, stock)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (category_id, name, description, price, photo_id, stock))
+            INSERT INTO products (category_id, name, description, price, size, photo_id, stock)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (category_id, name, description, price, size, photo_id, stock))
         await db.commit()
         return cursor.lastrowid
 
@@ -257,11 +307,6 @@ async def delete_product(product_id: int):
         await db.execute("UPDATE products SET is_active = 0 WHERE id = ?", (product_id,))
         await db.commit()
 
-async def update_product_stock(product_id: int, stock: int):
-    async with aiosqlite.connect(DATABASE_NAME) as db:
-        await db.execute("UPDATE products SET stock = ? WHERE id = ?", (stock, product_id))
-        await db.commit()
-
 
 # ============ SAVAT FUNKSIYALARI ============
 
@@ -287,7 +332,7 @@ async def get_cart(user_id: int) -> List[dict]:
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute("""
-            SELECT c.id, c.quantity, p.id as product_id, p.name, p.price, p.photo_id
+            SELECT c.id, c.quantity, p.id as product_id, p.name, p.price, p.photo_id, p.size
             FROM cart c
             JOIN products p ON c.product_id = p.id
             WHERE c.user_id = ?
@@ -325,7 +370,7 @@ async def clear_cart(user_id: int):
         await db.commit()
 
 
-# ============ BUYURTMA FUNKSIYALARI ============
+# ============ BUYURTMA VA CHEK FUNKSIYALARI ============
 
 async def create_order(user_id: int, phone: str, address: str) -> int:
     async with aiosqlite.connect(DATABASE_NAME) as db:
@@ -363,42 +408,32 @@ async def get_order(order_id: int) -> Optional[dict]:
             row = await cursor.fetchone()
             return dict(row) if row else None
 
-async def get_order_items(order_id: int) -> List[dict]:
-    async with aiosqlite.connect(DATABASE_NAME) as db:
-        db.row_factory = aiosqlite.Row
-        async with db.execute("""
-            SELECT oi.*, p.name
-            FROM order_items oi
-            JOIN products p ON oi.product_id = p.id
-            WHERE oi.order_id = ?
-        """, (order_id,)) as cursor:
-            rows = await cursor.fetchall()
-            return [dict(row) for row in rows]
-
 async def get_orders_count() -> int:
+    """Buyurtmalar sonini olish"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("SELECT COUNT(*) FROM orders") as cursor:
             row = await cursor.fetchone()
             return row[0]
-            # database.py fayliga qo'shing
-async def get_top_referrals():
-    async with aiosqlite.connect("bot_database.db") as db:
-        async with db.execute(
-            "SELECT full_name, referral_count FROM users ORDER BY referral_count DESC LIMIT 10"
-        ) as cursor:
-            return await cursor.fetchall()
-        # database.py fayliga qo'shing
-async def get_user_stats(user_id):
-    async with aiosqlite.connect("bot_database.db") as db:
-        async with db.execute(
-            "SELECT full_name, balance, referral_count, join_date FROM users WHERE user_id = ?", 
-            (user_id,)
-        ) as cursor:
-            return await cursor.fetchone()
-        # ... (tepadagi kodlarga tegmang) ...
 
 async def update_order_status(order_id: int, status: str):
-    """Buyurtma statusini yangilash (confirmed/cancelled)"""
+    """Buyurtma statusini yangilash"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
         await db.execute("UPDATE orders SET status = ? WHERE id = ?", (status, order_id))
         await db.commit()
+
+# --- YANGI: Chek tizimi uchun ---
+async def add_order(user_id: int, full_name: str, photo_id: str, product_name: str, status: str) -> int:
+    """Chekni bazaga saqlash"""
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        cursor = await db.execute("""
+            INSERT INTO order_checks (user_id, full_name, photo_id, product_name, status)
+            VALUES (?, ?, ?, ?, ?)
+        """, (user_id, full_name, photo_id, product_name, status))
+        await db.commit()
+        return cursor.lastrowid
+
+async def get_user_orders(user_id: int):
+    """Userning chek tarixini olish"""
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        async with db.execute("SELECT * FROM order_checks WHERE user_id = ? ORDER BY id DESC", (user_id,)) as cursor:
+            return await cursor.fetchall()
