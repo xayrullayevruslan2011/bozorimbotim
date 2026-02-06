@@ -4,6 +4,15 @@ Mahsulot qo'shish, buyurtma berish va boshqa jarayonlar uchun
 """
 from aiogram.fsm.state import State, StatesGroup
 
+class OrderState(StatesGroup):
+    phone = State()
+    address = State()
+    confirm = State()
+    waiting_for_receipt = State()
+
+class SearchState(StatesGroup): # SHU QISMI YO'Q EDI
+    waiting_for_query = State()
+
 class ContactState(StatesGroup):
     """Aloqa holatlari"""
     message = State()
