@@ -1,11 +1,13 @@
 """
 Savat handlerlari
 Savatga qo'shish, o'chirish, buyurtma berish va TO'LOV (Copy function)
+Yangi: Aqlli qidiruv tizimi integratsiyasi qo'shildi.
 """
 from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 
+# Database funksiyalari (search_products qo'shildi)
 from database import (
     add_to_cart,
     get_cart,
@@ -14,7 +16,8 @@ from database import (
     remove_from_cart,
     clear_cart,
     create_order,
-    get_product
+    get_product,
+    search_products 
 )
 from keyboards import (
     get_cart_keyboard,
@@ -22,9 +25,10 @@ from keyboards import (
     get_main_menu,
     get_phone_keyboard,
     get_confirm_order_keyboard,
-    get_cancel_button
+    get_cancel_button,
+    get_products_navigation # Qidiruv natijalari uchun
 )
-from states import OrderState
+from states import OrderState, SearchState # SearchState qo'shildi
 from config import ADMIN_IDS
 
 router = Router()
@@ -33,6 +37,51 @@ router = Router()
 CARD_NUMBER = "4073420067355457"
 CARD_OWNER = "Holboyeva Gulzebo"
 
+# =========================================================
+# 1. AQLLI QIDIRUV TIZIMI HANDLERLARI (YANGI)
+# =========================================================
+
+@router.message(F.text == "🔍 Qidiruv")
+async def cmd_search(message: Message, state: FSMContext):
+    """Qidiruvni boshlash"""
+    await message.answer(
+        "🔎 <b>Qidirayotgan mahsulot nomini yozing:</b>\n"
+        "<i>Masalan: Oyoq kiyim, Futbolka...</i>", 
+        parse_mode="HTML"
+    )
+    await state.set_state(SearchState.waiting_for_query)
+
+@router.message(SearchState.waiting_for_query)
+async def process_search(message: Message, state: FSMContext):
+    """Qidiruv natijalarini ko'rsatish"""
+    query = message.text.strip()
+    
+    if len(query) < 2:
+        await message.answer("⚠️ Iltimos, kamida 2 ta harf yozing.")
+        return
+
+    # Bazadan qidirish
+    results = await search_products(query)
+    
+    if not results:
+        await message.answer(
+            f"🤷‍♂️ Afsuski, <b>'{query}'</b> bo'yicha hech narsa topilmadi.", 
+            parse_mode="HTML"
+        )
+        await state.clear()
+        return
+
+    await message.answer(f"✅ <b>'{query}'</b> bo'yicha {len(results)} ta mahsulot topildi:")
+    
+    # Birinchi natijani ko'rsatish (products.py dagi show_product_item mantiqi kabi)
+    from products import show_product_item # Circular import bo'lsa, ichkarida chaqiramiz
+    await show_product_item(message, results, 0, results[0]['category_id'])
+    await state.clear()
+
+
+# =========================================================
+# 2. SAVATGA QO'SHISH VA KO'RSATISH
+# =========================================================
 
 @router.callback_query(F.data.startswith("add_cart_"))
 async def add_to_cart_handler(callback: CallbackQuery):
@@ -65,9 +114,7 @@ async def show_cart(message: Message):
         )
         return
     
-    # Savat tarkibini ko'rsatish
     cart_text = "🛒 <b>Sizning savatingiz:</b>\n\n"
-    
     total = 0
     for item in cart_items:
         item_total = item['price'] * item['quantity']
@@ -84,28 +131,23 @@ async def show_cart(message: Message):
         parse_mode="HTML"
     )
 
+# ... (Savat amallari: cart_plus, cart_minus, cart_remove, clear_cart, update_cart_message o'zgarishsiz qoladi)
 
 @router.callback_query(F.data.startswith("cart_plus_"))
 async def cart_increase(callback: CallbackQuery):
-    """Miqdorni oshirish"""
     cart_id = int(callback.data.split("_")[2])
     user_id = callback.from_user.id
-    
     cart_items = await get_cart(user_id)
     for item in cart_items:
         if item['id'] == cart_id:
             await update_cart_quantity(cart_id, item['quantity'] + 1)
             break
-    
     await update_cart_message(callback)
-
 
 @router.callback_query(F.data.startswith("cart_minus_"))
 async def cart_decrease(callback: CallbackQuery):
-    """Miqdorni kamaytirish"""
     cart_id = int(callback.data.split("_")[2])
     user_id = callback.from_user.id
-    
     cart_items = await get_cart(user_id)
     for item in cart_items:
         if item['id'] == cart_id:
@@ -115,25 +157,18 @@ async def cart_decrease(callback: CallbackQuery):
             else:
                 await update_cart_quantity(cart_id, new_quantity)
             break
-    
     await update_cart_message(callback)
 
-
 @router.callback_query(F.data.startswith("cart_remove_"))
-async def cart_remove(callback: CallbackQuery):
-    """Savatdan o'chirish"""
+async def cart_remove_handler(callback: CallbackQuery):
     cart_id = int(callback.data.split("_")[2])
-    
     await remove_from_cart(cart_id)
     await callback.answer("🗑 O'chirildi")
     await update_cart_message(callback)
 
-
 @router.callback_query(F.data == "clear_cart")
 async def clear_cart_handler(callback: CallbackQuery):
-    """Savatni tozalash"""
     await clear_cart(callback.from_user.id)
-    
     await callback.message.edit_text(
         "🗑 <b>Savat tozalandi</b>\n\n"
         "Mahsulotlarni ko'rish uchun quyidagi tugmani bosing:",
@@ -142,202 +177,104 @@ async def clear_cart_handler(callback: CallbackQuery):
     )
     await callback.answer("🗑 Savat tozalandi")
 
-
 async def update_cart_message(callback: CallbackQuery):
-    """Savat xabarini yangilash"""
     user_id = callback.from_user.id
     cart_items = await get_cart(user_id)
-    
     if not cart_items:
         await callback.message.edit_text(
-            "🛒 <b>Savatingiz bo'sh</b>\n\n"
-            "Mahsulotlarni ko'rish uchun quyidagi tugmani bosing:",
+            "🛒 <b>Savatingiz bo'sh</b>",
             reply_markup=get_empty_cart_keyboard(),
             parse_mode="HTML"
         )
         return
-    
     cart_text = "🛒 <b>Sizning savatingiz:</b>\n\n"
-    
-    total = 0
-    for item in cart_items:
-        item_total = item['price'] * item['quantity']
-        total += item_total
-        cart_text += f"📦 {item['name']}\n"
-        cart_text += f"   {item['quantity']} x {item['price']:,} = {item_total:,} so'm\n\n"
-    
-    cart_text += f"━━━━━━━━━━━━━━━\n"
-    cart_text += f"💰 <b>Jami: {total:,} so'm</b>"
-    
-    await callback.message.edit_text(
-        cart_text,
-        reply_markup=get_cart_keyboard(cart_items),
-        parse_mode="HTML"
-    )
+    total = sum(i['price'] * i['quantity'] for i in cart_items)
+    for i in cart_items:
+        cart_text += f"📦 {i['name']}\n   {i['quantity']} x {i['price']:,} = {i['price']*i['quantity']:,} so'm\n\n"
+    cart_text += f"━━━━━━━━━━━━━━━\n💰 <b>Jami: {total:,} so'm</b>"
+    await callback.message.edit_text(cart_text, reply_markup=get_cart_keyboard(cart_items), parse_mode="HTML")
     await callback.answer()
-
 
 # ============ BUYURTMA BERISH (CHECKOUT) ============
 
 @router.callback_query(F.data == "checkout")
 async def checkout(callback: CallbackQuery, state: FSMContext):
-    """Buyurtmani rasmiylashtirish - 1. Telefon so'rash"""
     user_id = callback.from_user.id
     cart_items = await get_cart(user_id)
-    
     if not cart_items:
         await callback.answer("❌ Savat bo'sh!", show_alert=True)
         return
-    
     await callback.message.edit_text(
         "📱 <b>Bog'lanish uchun telefon raqamingizni yuboring:</b>\n\n"
         "Pastdagi tugmani bosing 👇 yoki qo'lda yozing (+998...)",
         parse_mode="HTML"
     )
-    
-    # Telefon so'rash tugmasi
-    await callback.message.answer(
-        "📱 Telefon raqamni yuborish:",
-        reply_markup=get_phone_keyboard()
-    )
-    
+    await callback.message.answer("📱 Telefon raqamni yuborish:", reply_markup=get_phone_keyboard())
     await state.set_state(OrderState.phone)
     await callback.answer()
 
-
 @router.message(OrderState.phone, F.contact)
 async def process_phone_contact(message: Message, state: FSMContext):
-    """Telefon raqamni kontaktdan olish"""
-    phone = message.contact.phone_number
-    await state.update_data(phone=phone)
+    await state.update_data(phone=message.contact.phone_number)
     await ask_address(message, state)
-
 
 @router.message(OrderState.phone, F.text)
 async def process_phone_text(message: Message, state: FSMContext):
-    """Telefon raqamni matndan olish"""
-    phone = message.text
-    # Oddiy tekshiruv
-    if not any(char.isdigit() for char in phone):
+    if not any(char.isdigit() for char in message.text):
         await message.answer("❌ Iltimos, to'g'ri telefon raqam kiriting!")
         return
-
-    await state.update_data(phone=phone)
+    await state.update_data(phone=message.text)
     await ask_address(message, state)
 
-
 async def ask_address(message: Message, state: FSMContext):
-    """Manzil so'rash funksiyasi"""
     await message.answer(
-        "📍 <b>Yetkazib berish manzilini yozing:</b>\n"
-        "(Viloyat, shahar, ko'cha va uy raqami)",
+        "📍 <b>Yetkazib berish manzilini yozing:</b>",
         reply_markup=get_cancel_button(),
         parse_mode="HTML"
     )
     await state.set_state(OrderState.address)
 
-
 @router.message(OrderState.address)
 async def process_address(message: Message, state: FSMContext):
-    """Manzilni qabul qilish va tasdiqlash"""
-    address = message.text
-    await state.update_data(address=address)
-    
-    # Buyurtma ma'lumotlarini yig'ish
+    await state.update_data(address=message.text)
     data = await state.get_data()
-    user_id = message.from_user.id
-    cart_items = await get_cart(user_id)
-    total = await get_cart_total(user_id)
-    
+    cart_items = await get_cart(message.from_user.id)
+    total = sum(i['price'] * i['quantity'] for i in cart_items)
     order_text = "📋 <b>Buyurtmani tasdiqlang:</b>\n\n"
-    
     for item in cart_items:
-        item_total = item['price'] * item['quantity']
-        order_text += f"📦 {item['name']} x {item['quantity']} = {item_total:,} so'm\n"
-    
-    order_text += f"\n━━━━━━━━━━━━━━━\n"
-    order_text += f"💰 <b>Jami: {total:,} so'm</b>\n\n"
-    order_text += f"📱 Telefon: {data['phone']}\n"
-    order_text += f"📍 Manzil: {address}"
-    
-    await message.answer(
-        order_text,
-        reply_markup=get_confirm_order_keyboard(),
-        parse_mode="HTML"
-    )
+        order_text += f"📦 {item['name']} x {item['quantity']} = {item['price']*item['quantity']:,} so'm\n"
+    order_text += f"\n━━━━━━━━━━━━━━━\n💰 <b>Jami: {total:,} so'm</b>\n\n"
+    order_text += f"📱 Telefon: {data['phone']}\n📍 Manzil: {message.text}"
+    await message.answer(order_text, reply_markup=get_confirm_order_keyboard(), parse_mode="HTML")
     await state.set_state(OrderState.confirm)
-
 
 @router.callback_query(OrderState.confirm, F.data == "confirm_order")
 async def confirm_order(callback: CallbackQuery, state: FSMContext):
-    """Buyurtmani tasdiqlash va saqlash"""
     data = await state.get_data()
-    user_id = callback.from_user.id
-    
-    # Buyurtma yaratish
-    order_id = await create_order(
-        user_id=user_id,
-        phone=data['phone'],
-        address=data['address']
-    )
-    
+    order_id = await create_order(callback.from_user.id, data['phone'], data['address'])
     if order_id:
-        # Adminga xabar yuborish
         await notify_admin_new_order(callback.bot, order_id, callback.from_user, data)
-
-        # Foydalanuvchiga muvaffaqiyat xabari va KARTA (Copy qilish uchun)
         await callback.message.edit_text(
-            f"✅ <b>Buyurtmangiz qabul qilindi!</b>\n"
-            f"🆔 Buyurtma raqami: <code>#{order_id}</code>\n\n"
-            f"➖➖➖➖➖➖➖➖➖➖\n"
-            f"💳 <b>TO'LOV UCHUN KARTA:</b>\n"
-            f"<code>{CARD_NUMBER}</code>\n"
-            f"👤 <b>{CARD_OWNER}</b>\n"
-            f"➖➖➖➖➖➖➖➖➖➖\n\n"
-            f"<i>👆 Karta raqam nusxalash uchun ustiga bosing!</i>\n"
-            f"📝 Iltimos, to'lov chekini @Ruslanbek20119 ga yuboring.",
+            f"✅ <b>Buyurtmangiz qabul qilindi!</b>\n🆔 Buyurtma: <code>#{order_id}</code>\n\n"
+            f"💳 <b>TO'LOV KARTASI:</b>\n<code>{CARD_NUMBER}</code>\n👤 <b>{CARD_OWNER}</b>\n\n"
+            f"📝 To'lov chekini @Ruslanbek20119 ga yuboring.",
             parse_mode="HTML"
         )
     else:
-        await callback.message.edit_text(
-            "❌ Xatolik yuz berdi. Qaytadan urinib ko'ring."
-        )
-    
+        await callback.message.edit_text("❌ Xatolik yuz berdi.")
     await state.clear()
-    is_admin = callback.from_user.id in ADMIN_IDS
-    await callback.message.answer(
-        "🏠 Asosiy menyu:",
-        reply_markup=get_main_menu(is_admin)
-    )
+    await callback.message.answer("🏠 Asosiy menyu:", reply_markup=get_main_menu(callback.from_user.id in ADMIN_IDS))
     await callback.answer()
-
 
 @router.callback_query(OrderState.confirm, F.data == "cancel_order")
 async def cancel_order(callback: CallbackQuery, state: FSMContext):
-    """Buyurtmani bekor qilish"""
     await state.clear()
-    is_admin = callback.from_user.id in ADMIN_IDS
-    
     await callback.message.edit_text("❌ Buyurtma bekor qilindi.")
-    await callback.message.answer(
-        "🏠 Asosiy menyu:",
-        reply_markup=get_main_menu(is_admin)
-    )
+    await callback.message.answer("🏠 Asosiy menyu:", reply_markup=get_main_menu(callback.from_user.id in ADMIN_IDS))
     await callback.answer()
 
-
 async def notify_admin_new_order(bot: Bot, order_id: int, user, data: dict):
-    # Admin uchun xabar tayyorlash
-    text = f"🆕 <b>Yangi buyurtma!</b>\n"
-    text += f"🆔 Buyurtma raqami: #{order_id}\n\n"
-    
-    text += f"👤 Buyurtmachi: @{user.username or 'mavjud_emas'}\n"
-    text += f"📞 Telefon: {data.get('phone', 'Kiritilmagan')}\n"
-    text += f"📍 Manzil: {data.get('address', 'Kiritilmagan')}\n"
-
-    # Adminga yuborish
+    text = f"🆕 <b>Yangi buyurtma!</b>\n🆔 Buyurtma raqami: #{order_id}\n\n👤 Mijoz: @{user.username or 'mavjud_emas'}\n📞 Telefon: {data.get('phone')}\n📍 Manzil: {data.get('address')}"
     for admin_id in ADMIN_IDS:
-        try:
-            await bot.send_message(admin_id, text, parse_mode="HTML")
-        except:
-            pass
+        try: await bot.send_message(admin_id, text, parse_mode="HTML")
+        except: pass

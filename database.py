@@ -1,6 +1,6 @@
 """
 Ma'lumotlar bazasi - SQLite bilan ishlash
-Tahrirlangan: Razmer, Custom ID, Statistika va Chek tizimi qo'shildi.
+Tahrirlangan: Razmer, Custom ID, Statistika, Chek va Aqlli Qidiruv tizimi.
 """
 import aiosqlite
 import random
@@ -13,7 +13,7 @@ DATABASE_NAME = "market_bot.db"
 async def init_db():
     """Ma'lumotlar bazasini yaratish va jadvallarni boshlash"""
     async with aiosqlite.connect(DATABASE_NAME) as db:
-        # 1. Foydalanuvchilar jadvali (custom_id qo'shildi)
+        # 1. Foydalanuvchilar jadvali
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
@@ -36,7 +36,7 @@ async def init_db():
             )
         """)
         
-        # 3. Mahsulotlar jadvali (size qo'shildi)
+        # 3. Mahsulotlar jadvali
         await db.execute("""
             CREATE TABLE IF NOT EXISTS products (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -266,8 +266,6 @@ async def add_product(category_id: int, name: str, description: str, price: int,
 async def get_products_by_category(category_id: int) -> List[dict]:
     async with aiosqlite.connect(DATABASE_NAME) as db:
         db.row_factory = aiosqlite.Row
-        # is_active tekshiruvi xalaqit berayotgan bo'lishi mumkin, 
-        # shuning uchun faqat category_id bo'yicha olamiz
         async with db.execute("SELECT * FROM products WHERE category_id = ?", (category_id,)) as cursor:
             rows = await cursor.fetchall()
             return [dict(row) for row in rows]
@@ -421,3 +419,18 @@ async def get_user_orders(user_id: int):
     async with aiosqlite.connect(DATABASE_NAME) as db:
         async with db.execute("SELECT * FROM order_checks WHERE user_id = ? ORDER BY id DESC", (user_id,)) as cursor:
             return await cursor.fetchall()
+
+
+# ============ 🔥 YANGI: AQLLI QIDIRUV FUNKSIYASI 🔥 ============
+
+async def search_products(query: str) -> List[dict]:
+    """Mahsulotlarni nomi bo'yicha qidirish"""
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        db.row_factory = aiosqlite.Row
+        # %query% patterni nomi ichida shu so'z bor hamma mahsulotni topadi
+        async with db.execute(
+            "SELECT * FROM products WHERE name LIKE ? ORDER BY id DESC", 
+            (f"%{query}%",)
+        ) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(row) for row in rows]

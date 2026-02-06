@@ -1,7 +1,7 @@
 """
 Klaviaturalar - TO'LIQ VA KENGAYTIRILGAN VERSIYA
 Barcha funksiyalar jamlangan:
-1. Asosiy menyu
+1. Asosiy menyu (Qidiruv bilan)
 2. Kabinet va Referallar
 3. Online Kurslar va To'lov
 4. Admin Panel (To'liq)
@@ -34,32 +34,35 @@ def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
     """Asosiy menyu (User va Admin uchun)"""
     builder = ReplyKeyboardBuilder()
     
-    # 1-qator: Savdo
+    # 1-qator: Savdo va Qidiruv
     builder.row(
         KeyboardButton(text="🛍 Mahsulotlar"),
-        KeyboardButton(text="🎓 Online Kurslar")
+        KeyboardButton(text="🔍 Qidiruv") # YANGI QO'SHILDI ✅
     )
     
-    # 2-qator: Shaxsiy
+    # 2-qator: Kurslar va Savat
     builder.row(
-        KeyboardButton(text="🛒 Savat"),
-        KeyboardButton(text="📦 Mening buyurtmalarim")
+        KeyboardButton(text="🎓 Online Kurslar"),
+        KeyboardButton(text="🛒 Savat")
     )
     
-    # 3-qator: Xizmatlar
+    # 3-qator: Buyurtmalar va Limit
     builder.row(
-        KeyboardButton(text="💰 Limit olish"),
-        KeyboardButton(text="📂 Yangi Bo'lim") 
+        KeyboardButton(text="📦 Mening buyurtmalarim"),
+        KeyboardButton(text="💰 Limit olish")
     )
-
-    # 4-qator: Aloqa va Sozlama
+    
+    # 4-qator: Kabinet va Sozlama
     builder.row(
-        KeyboardButton(text="📞 Biz bilan aloqa"),
+        KeyboardButton(text="📂 Yangi Bo'lim"), 
         KeyboardButton(text="⚙️ Sozlamalar")
     )
-    
-    # 5-qator: Qo'shimcha
-    builder.row(KeyboardButton(text="ℹ️ Ma'lumot"))
+
+    # 5-qator: Aloqa va Ma'lumot
+    builder.row(
+        KeyboardButton(text="📞 Biz bilan aloqa"),
+        KeyboardButton(text="ℹ️ Ma'lumot")
+    )
 
     # Admin bo'lsa
     if is_admin:
@@ -292,7 +295,7 @@ def get_user_orders_navigation(current_index: int, total_orders: int) -> InlineK
     return builder.as_markup()
 
 def get_confirm_order_keyboard() -> InlineKeyboardMarkup:
-    """Buyurtmani tasdiqlash tugmasi (Savatdan) - SHU YERDA XATO BO'LGAN EDI"""
+    """Buyurtmani tasdiqlash tugmasi (Savatdan)"""
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="✅ Tasdiqlash", callback_data="confirm_order"),
@@ -393,7 +396,7 @@ def get_buy_button(product_name: str, price: int) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 def get_clothing_keyboard() -> InlineKeyboardMarkup:
-    """Jinsi va Bryuk uchun maxsus tugmalar (Eski koddan)"""
+    """Jinsi va Bryuk uchun maxsus tugmalar"""
     builder = InlineKeyboardBuilder()
     
     # 1. Oversize Jeans
