@@ -51,3 +51,21 @@ class BroadcastState(StatesGroup):
 class AdminState(StatesGroup):
     """Admin buyurtmani tasdiqlash holati"""
     waiting_for_track = State() # Admin trek kod yozishi kerak
+    
+    from aiogram.fsm.state import State, StatesGroup
+
+class OrderState(StatesGroup):
+    """Buyurtma berish holatlari"""
+    phone = State()
+    address = State()
+    confirm = State()
+    waiting_for_receipt = State()
+
+class RegistrationState(StatesGroup):
+    """Ro'yxatdan o'tish holatlari"""
+    waiting_for_phone = State()
+    waiting_for_address = State()
+
+class SearchState(StatesGroup):
+    """Qidiruv holati"""
+    waiting_for_query = State()

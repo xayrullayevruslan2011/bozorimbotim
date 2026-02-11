@@ -17,6 +17,7 @@ async def init_db():
         await db.execute("""
             CREATE TABLE IF NOT EXISTS users (
                 user_id INTEGER PRIMARY KEY,
+                address TEXT,
                 custom_id INTEGER,
                 username TEXT,
                 full_name TEXT,
@@ -26,7 +27,14 @@ async def init_db():
                 registered_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
+        # AGAR BAZA OLDIN BOR BO'LSA: address ustunini tekshirib qo'shish
+        try:
+            # Bu qator faqat eski bazada 'address' ustuni bo'lmasa ishlaydi
+            await db.execute("ALTER TABLE users ADD COLUMN address TEXT")
+        except:
+            pass # Agar ustun allaqachon bo'lsa, xato bermaydi va davom etadi
+
         # 2. Kategoriyalar jadvali
         await db.execute("""
             CREATE TABLE IF NOT EXISTS categories (
@@ -160,6 +168,15 @@ async def add_user(user_id: int, username: str, full_name: str, referrer_id: int
 
         await db.commit()
 
+# YANGI QO'SHILDI: Alohida funksiya qilib chiqarildi
+async def update_user_details(user_id: int, phone: str = None, address: str = None):
+    """Foydalanuvchi ma'lumotlarini (tel va manzil) yangilash"""
+    async with aiosqlite.connect(DATABASE_NAME) as db:
+        if phone:
+            await db.execute("UPDATE users SET phone = ? WHERE user_id = ?", (phone, user_id))
+        if address:
+            await db.execute("UPDATE users SET address = ? WHERE user_id = ?", (address, user_id))
+        await db.commit()
 
 async def get_user(user_id: int) -> Optional[dict]:
     """Foydalanuvchi ma'lumotlarini olish"""
