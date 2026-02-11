@@ -22,6 +22,6 @@ CHANNEL_ID = "https://t.me/+070PVh6S4cc3Zjli"
 
 # Kanallar ro'yxati (Majburiy obuna uchun)
 REQUIRED_CHANNELS = [
-    "@xitoybozor_n1", 
-    "@xitoydarslik_navoiy"
+    "@xitoybozor_n1"
+    
 ]
