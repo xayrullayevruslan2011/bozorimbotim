@@ -380,53 +380,50 @@ def get_phone_keyboard() -> ReplyKeyboardMarkup:
 
 
 # =========================================================
-# 8. MAXSUS KIYIMLAR VA NASIYA TUGMALARI
+# 8. MAXSUS  SHOP 
 # =========================================================
 
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types.web_app_info import WebAppInfo
+
+# Sening yangi Vercel sayting manzili
+SHOP_URL = "https://ruslan-shop-brand-s8n3.vercel.app"
+
 def get_buy_button(product_name: str, price: int) -> InlineKeyboardMarkup:
-    """Universal Nasiya Tugmasi"""
-    full_url = f"{NASIYA_URL}?name={product_name}&price={price}"
+    """Universal WebApp Sotib olish Tugmasi"""
+    # URL orqali saytga mahsulot nomi va narxini berib yuboramiz
+    full_url = f"{SHOP_URL}?name={product_name}&price={price}"
+    
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(
-            text="💳 Nasiyaga olish", 
+            text="🛍 Sayt orqali sotib olish", 
             web_app=WebAppInfo(url=full_url)
         )
     )
     return builder.as_markup()
 
 def get_clothing_keyboard() -> InlineKeyboardMarkup:
-    """Jinsi va Bryuk uchun maxsus tugmalar"""
+    """Jinsi va Bryuk uchun maxsus tugmalar (Ruslan Shop orqali)"""
     builder = InlineKeyboardBuilder()
     
     # 1. Oversize Jeans
-    url_jeans = f"{NASIYA_URL}?name=Oversize Jeans&price=170000"
+    url_jeans = f"{SHOP_URL}?name=Oversize Jeans&price=170000"
     builder.row(
         InlineKeyboardButton(
-            text="👖 Oversize Jeans - Nasiya", 
+            text="👖 Oversize Jeans - Sotib olish", 
             web_app=WebAppInfo(url=url_jeans)
         )
     )
     
     # 2. Oversize Bryuk
-    url_bryuk = f"{NASIYA_URL}?name=Oversize Bryuk&price=90000"
+    url_bryuk = f"{SHOP_URL}?name=Oversize Bryuk&price=90000"
     builder.row(
         InlineKeyboardButton(
-            text="👖 Oversize Bryuk - Nasiya", 
+            text="👖 Oversize Bryuk - Sotib olish", 
             web_app=WebAppInfo(url=url_bryuk)
         )
     )
-    return builder.as_markup()
-def get_main_menu():
-    builder = InlineKeyboardBuilder()
-    
-    # Tugmani yaratish
-    web_app_btn = InlineKeyboardButton(
-        text="🛍️ RUSLAN | SHOP",
-        web_app=WebAppInfo(url="https://ruslan-shop-brand-s8n3.vercel.app")
-    )
-    
-    # MUHIM: Tugmani builderga qo'shish (Sen shuni yozmagansan)
-    builder.row(web_app_btn)
     
     return builder.as_markup()

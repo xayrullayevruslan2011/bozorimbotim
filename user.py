@@ -37,7 +37,7 @@ from keyboards import (
     get_payment_cancel_keyboard,
     get_user_orders_navigation,
     get_admin_check_keyboard,
-    get_tariffs_keyboard,           
+    get_tariffs_keyboard,          
     get_payment_actions_keyboard,
     get_cabinet_keyboard # Yangi kabinet tugmalari
 )
@@ -63,8 +63,10 @@ async def check_sub_status(bot: Bot, user_id: int):
             member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
             if member.status in ['left', 'kicked', 'restricted']:
                 return False
-        except Exception:
-            continue 
+        except Exception as e:
+            # Xatolikni konsolga chiqarish foydali (masalan, bot kanalda admin bo'lmasa)
+            print(f"Kanal obunasini tekshirishda xatolik ({channel}): {e}")
+            return False 
     return True
 
 
@@ -139,9 +141,7 @@ async def check_btn(callback: CallbackQuery, bot: Bot):
             parse_mode="HTML"
         )
     else:
-        await callback.answer("❌ Hali to'liq a'zo bo'lmadingiz!", show_alert=True)
-
-
+        await callback.answer("❌ Hali to'liq a'zo bo'lmadingiz! Iltimos, barcha kanallarga qo'shiling.", show_alert=True)
 # ==================================================
 # 🔥 YANGI BO'LIM (SHAXSIY KABINET) 🔥
 # ==================================================
@@ -528,14 +528,16 @@ async def close_orders_window(callback: CallbackQuery):
 # QOLGAN HANDLERLAR
 # ==================================================
 
-@router.message(F.text == "💰 Limit olish")
-async def limit_handler(message: Message):
-    text = (
-        "<b>🚀 Nasiya Limitini Tekshirish</b>\n\n"
-        "Marhamat, pastdagi tugmani bosib, o'z limitingizni tekshirib oling! 👇"
-    )
-    await message.answer(text, reply_markup=get_limit_keyboard(), parse_mode="HTML")
+# user.py ichida
+from keyboards import get_shop_keyboard # TEPAGA SHU IMPORTNI QO'SHISHNI UNUTMA!
 
+@router.message(F.text == "🛍 Ruslan | Shop")
+async def shop_handler(message: Message):
+    text = (
+        "<b>🛍 RUSLAN | SHOP</b>\n\n"
+        "Internet-do'konimizga xush kelibsiz! Marhamat, pastdagi tugmani bosib tovarlar katalogi va o'z yuklaringizni (Trek-kodlarni) kuzating 👇"
+    )
+    await message.answer(text, reply_markup=get_shop_keyboard(), parse_mode="HTML")
 @router.message(F.text == "🔙 Orqaga")
 async def go_back(message: Message, state: FSMContext):
     await state.clear()
