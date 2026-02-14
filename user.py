@@ -609,10 +609,3 @@ async def process_feedback(message: Message, state: FSMContext):
 async def show_location(callback: CallbackQuery):
     await callback.message.answer_location(latitude=40.1031, longitude=65.3742)
     await callback.answer("📍 Manzilimiz")
-
-@router.message(F.text("start"))
-async def start_handler(message: Message): # 'bot: Bot' qismini olib tashlasang ogohlantirish yo'qoladi
-    await message.answer(
-        "Xush kelibsiz! Ruslan Shop xizmatidan foydalaning:",
-        reply_markup=get_main_menu() # Sening WebApp tugmang shu yerda!
-    )
