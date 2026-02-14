@@ -417,20 +417,16 @@ def get_clothing_keyboard() -> InlineKeyboardMarkup:
         )
     )
     return builder.as_markup()
-# keyboards.py faylida
-def get_main_keyboard():
-    builder = ReplyKeyboardBuilder() # yoki InlineKeyboardBuilder ishlatayotgan bo'lsang
+def get_main_menu():
+    builder = InlineKeyboardBuilder()
     
-    # Sening WebApp tugmang
+    # Tugmani yaratish
     web_app_btn = InlineKeyboardButton(
         text="🛍️ RUSLAN | SHOP",
         web_app=WebAppInfo(url="https://ruslan-shop-brand-s8n3.vercel.app")
     )
     
-    # MUHIM: Tugmani menyuga qo'shish
-    builder.row(web_app_btn) 
-    
-    # Boshqa tugmalarni ham qo'shishing mumkin (Mahsulotlar, Savat va hk)
-    builder.row(InlineKeyboardButton(text="📦 Mening buyurtmalarim", callback_data="orders"))
+    # MUHIM: Tugmani builderga qo'shish (Sen shuni yozmagansan)
+    builder.row(web_app_btn)
     
     return builder.as_markup()
