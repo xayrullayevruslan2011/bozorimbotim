@@ -427,3 +427,13 @@ def get_clothing_keyboard() -> InlineKeyboardMarkup:
     )
     
     return builder.as_markup()
+def get_shop_keyboard():
+    """Asosiy menyudagi Ruslan | Shop tugmasi bosilganda chiqadigan WebApp tugma"""
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="🌐 Do'konga kirish (Web)", 
+            web_app=WebAppInfo(url=SHOP_URL)
+        )
+    )
+    return builder.as_markup()
