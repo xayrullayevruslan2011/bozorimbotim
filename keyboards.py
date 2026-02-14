@@ -46,10 +46,10 @@ def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
         KeyboardButton(text="🛒 Savat")
     )
     
-    # 3-qator: Buyurtmalar va Limit
+    # 3-qator: Buyurtmalar va Ruslan | Shop
     builder.row(
         KeyboardButton(text="📦 Mening buyurtmalarim"),
-        KeyboardButton(text="💰 Limit olish")
+        KeyboardButton(text="🛍 Ruslan | Shop") # <--- MANA SHU YER O'ZGARDI ✅
     )
     
     # 4-qator: Kabinet va Sozlama
@@ -427,6 +427,7 @@ def get_clothing_keyboard() -> InlineKeyboardMarkup:
     )
     
     return builder.as_markup()
+
 def get_shop_keyboard():
     """Asosiy menyudagi Ruslan | Shop tugmasi bosilganda chiqadigan WebApp tugma"""
     builder = InlineKeyboardBuilder()
