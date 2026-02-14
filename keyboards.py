@@ -417,3 +417,9 @@ def get_clothing_keyboard() -> InlineKeyboardMarkup:
         )
     )
     return builder.as_markup()
+from aiogram.types import WebAppInfo, InlineKeyboardButton, InlineKeyboardMarkup
+
+web_app_btn = InlineKeyboardButton(
+    text="RUSLAN | SHOP ", 
+    web_app=WebAppInfo(url="https://ruslan-shop-brand-s8n3.vercel.app")
+)

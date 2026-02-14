@@ -17,7 +17,6 @@ ADMIN_USERNAME = "@Ruslanbek20119"  # Admin username
 
 # Kanal (agar kerak bo'lsa)
 CHANNEL_ID = "https://t.me/xitoybozor_n1"
-CHANNEL_ID = "https://t.me/+070PVh6S4cc3Zjli"
 # ... tepadagi kodlar ...
 
 # Kanallar ro'yxati (Majburiy obuna uchun)
