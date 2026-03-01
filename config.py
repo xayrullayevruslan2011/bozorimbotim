@@ -16,7 +16,7 @@ ADMIN_IDS = [8215056224]  # O'zingizning Telegram ID'laringizni kiriting
 ADMIN_USERNAME = "@Ruslanbek20119"  # Admin username
 
 # Kanal (agar kerak bo'lsa)
-REQUIRED_CHANNELS = ["@xitoybozor_n1"]
+REQUIRED_CHANNELS = ["xitoydarslik1"]
 # ... tepadagi kodlar ...
 
 # Kanallar ro'yxati (Majburiy obuna uchun)
