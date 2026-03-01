@@ -16,7 +16,7 @@ from aiogram.fsm.context import FSMContext
 from keyboards import get_shop_keyboard
 
 # Config ma'lumotlari
-from config import ADMIN_IDS, ADMIN_USERNAME, REQUIRED_CHANNELS 
+from config import ADMIN_IDS, ADMIN_USERNAME
 
 # DATABASE IMPORTLARI (Faqat 'database.py' dan)
 from database import (
