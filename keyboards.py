@@ -24,7 +24,7 @@ from config import ADMIN_USERNAME
 # LINKLAR
 NASIYA_URL = "https://nasiyaruslan.vercel.app"
 PLATFORM_URL = "https://online-kurs-kmkn.vercel.app/"
-SHOP_URL = "https://ruslan-shop-brand-s8n3.vercel.app" # YANGI QO'SHILDI
+SHOP_URL = "https://ruslan-shop-uz.vercel.app/" # YANGI QO'SHILDI
 
 
 # =========================================================
