@@ -15,8 +15,7 @@ from keep_alive import keep_alive # Render uchun
 # Routerlarni (bo'limlarni) import qilish
 from admin import router as admin_router
 from user import router as user_router
-from products import router as products_router
-from cart import router as cart_router
+
 
 async def main():
     # 1. Loglarni sozlash
@@ -42,8 +41,6 @@ async def main():
     # 5. Routerlarni ulash
     dp.include_routers(
         admin_router,
-        products_router,
-        cart_router,
         user_router
     )
 
