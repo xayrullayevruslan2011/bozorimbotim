@@ -16,7 +16,7 @@ from aiogram.fsm.context import FSMContext
 from keyboards import get_shop_keyboard
 
 # Config ma'lumotlari
-from config import ADMIN_IDS, ADMIN_USERNAME, REQUIRED_CHANNELS
+from config import ADMIN_IDS, ADMIN_USERNAME
 
 # DATABASE IMPORTLARI (Faqat 'database.py' dan)
 from database import (
@@ -54,21 +54,7 @@ CARD_OWNER = "Holboyeva Gulzebo"
 # ==================================================
 # 1. OBUNA TEKSHIRISH (HELPER FUNCTION)
 # ==================================================
-async def check_sub_status(bot: Bot, user_id: int):
-    """Foydalanuvchi kanallarga a'zo ekanligini tekshiradi"""
-    if not REQUIRED_CHANNELS:
-        return True
 
-    for channel in REQUIRED_CHANNELS:
-        try:
-            member = await bot.get_chat_member(chat_id=channel, user_id=user_id)
-            if member.status in ['left', 'kicked', 'restricted']:
-                return False
-        except Exception as e:
-            # Xatolikni konsolga chiqarish foydali (masalan, bot kanalda admin bo'lmasa)
-            print(f"Kanal obunasini tekshirishda xatolik ({channel}): {e}")
-            return False 
-    return True
 
 
 # ==================================================
@@ -97,16 +83,7 @@ async def cmd_start(message: Message, command: CommandObject, state: FSMContext,
     )
     
     # Obunani tekshirish
-    is_subscribed = await check_sub_status(bot, message.from_user.id)
     
-    if not is_subscribed:
-        await message.answer(
-            f"👋 <b>Assalomu alaykum, {message.from_user.full_name}!</b>\n\n"
-            "Botdan to'liq foydalanish uchun quyidagi kanallarga a'zo bo'ling:",
-            reply_markup=get_subscription_keyboard(),
-            parse_mode="HTML"
-        )
-        return
 
     # Agar a'zo bo'lsa, menyuni ochamiz
     is_admin = message.from_user.id in ADMIN_IDS
@@ -127,22 +104,7 @@ Bu yerda siz turli xil mahsulotlarni ko'rishingiz, xarid qilishingiz va pul ishl
     )
 
 
-@router.callback_query(F.data == "check_subscription")
-async def check_btn(callback: CallbackQuery, bot: Bot):
-    """Obunani tekshirish tugmasi"""
-    is_subscribed = await check_sub_status(bot, callback.from_user.id)
-    
-    if is_subscribed:
-        await callback.message.delete()
-        is_admin = callback.from_user.id in ADMIN_IDS
-        await callback.message.answer(
-            "✅ <b>Rahmat! Siz barcha kanallarga a'zo bo'ldingiz.</b>\n\n"
-            "Marhamat, xizmatlardan foydalanishingiz mumkin:",
-            reply_markup=get_main_menu(is_admin),
-            parse_mode="HTML"
-        )
-    else:
-        await callback.answer("❌ Hali to'liq a'zo bo'lmadingiz! Iltimos, barcha kanallarga qo'shiling.", show_alert=True)
+
 # ==================================================
 # 🔥 YANGI BO'LIM (SHAXSIY KABINET) 🔥
 # ==================================================
