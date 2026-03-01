@@ -20,7 +20,3 @@ CHANNEL_ID = "https://t.me/xitoybozor_n1"
 # ... tepadagi kodlar ...
 
 # Kanallar ro'yxati (Majburiy obuna uchun)
-REQUIRED_CHANNELS = [
-    "@xitoybozor_n1"
-    
-]

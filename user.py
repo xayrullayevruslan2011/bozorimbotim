@@ -13,7 +13,7 @@ from aiogram import Router, F, Bot
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton, InputMediaPhoto
 from aiogram.filters import CommandStart, CommandObject
 from aiogram.fsm.context import FSMContext
-from keyboards import get_shop_keyboard 
+from keyboards import get_shop_keyboard
 
 # Config ma'lumotlari
 from config import ADMIN_IDS, ADMIN_USERNAME, REQUIRED_CHANNELS 

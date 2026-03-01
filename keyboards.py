@@ -24,6 +24,7 @@ from config import ADMIN_USERNAME
 # LINKLAR
 NASIYA_URL = "https://nasiyaruslan.vercel.app"
 PLATFORM_URL = "https://online-kurs-kmkn.vercel.app/"
+SHOP_URL = "https://ruslan-shop-brand-s8n3.vercel.app" # YANGI QO'SHILDI
 
 
 # =========================================================
@@ -31,37 +32,25 @@ PLATFORM_URL = "https://online-kurs-kmkn.vercel.app/"
 # =========================================================
 
 def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
-    """Asosiy menyu (User va Admin uchun)"""
+    """Asosiy menyu (User va Admin uchun) - Qisqartirildi"""
     builder = ReplyKeyboardBuilder()
     
-    # 1-qator: Savdo va Qidiruv
+    # Faqat WebApp, Sozlamalar va Kurslar qoldi
     builder.row(
-        KeyboardButton(text="🛍 Mahsulotlar"),
-        KeyboardButton(text="🔍 Qidiruv") # YANGI QO'SHILDI ✅
+        KeyboardButton(
+            text="🛍 Magazinga kirish", 
+            web_app=WebAppInfo(url=SHOP_URL)
+        )
     )
     
-    # 2-qator: Kurslar va Savat
     builder.row(
         KeyboardButton(text="🎓 Online Kurslar"),
-        KeyboardButton(text="🛒 Savat")
+        KeyboardButton(text="📂 Yangi Bo'lim")
     )
     
-    # 3-qator: Buyurtmalar va Ruslan | Shop
     builder.row(
-        KeyboardButton(text="📦 Mening buyurtmalarim"),
-        KeyboardButton(text="🛍 Ruslan | Shop") # <--- MANA SHU YER O'ZGARDI ✅
-    )
-    
-    # 4-qator: Kabinet va Sozlama
-    builder.row(
-        KeyboardButton(text="📂 Yangi Bo'lim"), 
-        KeyboardButton(text="⚙️ Sozlamalar")
-    )
-
-    # 5-qator: Aloqa va Ma'lumot
-    builder.row(
-        KeyboardButton(text="📞 Biz bilan aloqa"),
-        KeyboardButton(text="ℹ️ Ma'lumot")
+        KeyboardButton(text="⚙️ Sozlamalar"),
+        KeyboardButton(text="📞 Biz bilan aloqa")
     )
 
     # Admin bo'lsa
@@ -143,24 +132,22 @@ def get_payment_cancel_keyboard() -> ReplyKeyboardMarkup:
 # =========================================================
 
 def get_admin_panel_keyboard() -> InlineKeyboardMarkup:
-    """Admin asosiy menyusi"""
+    """Admin asosiy menyusi - Tozalangan variant"""
     b = InlineKeyboardBuilder()
-    # Mahsulot va Kategoriya
-    b.row(
-        InlineKeyboardButton(text="📦 Mahsulotlar", callback_data="admin_products"), 
-        InlineKeyboardButton(text="📁 Kategoriyalar", callback_data="admin_categories")
-    )
-    # Stats va Broadcast
+    
+    # Faqat Statistika va Xabar yuborish qoldi
     b.row(
         InlineKeyboardButton(text="📊 Statistika", callback_data="admin_stats"), 
         InlineKeyboardButton(text="📢 Xabar yuborish", callback_data="admin_broadcast")
     )
-    # Buyurtmalar
-    b.row(InlineKeyboardButton(text="📋 Buyurtmalar", callback_data="admin_orders"))
+    
+    # Buyurtmalar boshqaruvi
+    b.row(InlineKeyboardButton(text="📋 Barcha Buyurtmalar", callback_data="admin_orders"))
+    
     return b.as_markup()
 
 def get_admin_check_keyboard(order_id: int) -> InlineKeyboardMarkup:
-    """Admin: Chekni tasdiqlash/rad etish"""
+    """Admin: Kelgan buyurtma chekini tasdiqlash/rad etish"""
     builder = InlineKeyboardBuilder()
     builder.row(
         InlineKeyboardButton(text="✅ Tasdiqlash", callback_data=f"admin_confirm_{order_id}"),
@@ -168,117 +155,23 @@ def get_admin_check_keyboard(order_id: int) -> InlineKeyboardMarkup:
     )
     return builder.as_markup()
 
-def get_admin_categories_keyboard(categories: List[dict]) -> InlineKeyboardMarkup:
-    """Admin: Kategoriya ro'yxati"""
-    builder = InlineKeyboardBuilder()
-    for category in categories:
-        builder.row(
-            InlineKeyboardButton(text=f"{category['emoji']} {category['name']}", callback_data=f"admin_cat_{category['id']}"),
-            InlineKeyboardButton(text="🗑", callback_data=f"delete_cat_{category['id']}")
-        )
-    builder.row(InlineKeyboardButton(text="➕ Yangi kategoriya", callback_data="add_category"))
-    return builder.as_markup()
-
-def get_admin_products_keyboard(products: List[dict]) -> InlineKeyboardMarkup:
-    """Admin: Mahsulot ro'yxati"""
-    builder = InlineKeyboardBuilder()
-    for product in products:
-        builder.row(
-            InlineKeyboardButton(text=f"📦 {product['name']}", callback_data=f"admin_prod_{product['id']}"),
-            InlineKeyboardButton(text="🗑", callback_data=f"delete_prod_{product['id']}")
-        )
-    builder.row(InlineKeyboardButton(text="➕ Yangi mahsulot", callback_data="add_product"))
-    return builder.as_markup()
-
-def get_admin_select_category_keyboard(categories: List[dict]) -> InlineKeyboardMarkup:
-    """Admin: Mahsulot qo'shish uchun kategoriya tanlash"""
-    builder = InlineKeyboardBuilder()
-    for category in categories:
-        builder.row(InlineKeyboardButton(text=f"{category['emoji']} {category['name']}", callback_data=f"select_cat_{category['id']}"))
-    builder.row(InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_add_product"))
-    return builder.as_markup()
-
 def get_broadcast_confirm_keyboard() -> InlineKeyboardMarkup:
-    """Admin: Xabarni tasdiqlash"""
+    """Admin: Xabarni yuborishdan oldin tasdiqlash"""
     b = InlineKeyboardBuilder()
     b.row(
-        InlineKeyboardButton(text="✅ Yuborish", callback_data="confirm_broadcast"), 
+        InlineKeyboardButton(text="🚀 Yuborishni boshlash", callback_data="confirm_broadcast"), 
         InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_broadcast")
     )
     return b.as_markup()
 
-
 # =========================================================
-# 5. DO'KON TUGMALARI (FOYDALANUVCHI)
+# 5. DO'KON TUGMALARI (FOYDALANUVCHI) - O'chirilgan, o'rniga WebApp
 # =========================================================
 
-def get_categories_keyboard(categories: List[dict]) -> InlineKeyboardMarkup:
-    """Foydalanuvchi: Kategoriyalar"""
-    builder = InlineKeyboardBuilder()
-    for category in categories:
-        builder.row(
-            InlineKeyboardButton(
-                text=f"{category['emoji']} {category['name']}",
-                callback_data=f"category_{category['id']}"
-            )
-        )
-    return builder.as_markup()
-
-def get_products_navigation(category_id: int, current_index: int, total: int, product_id: int) -> InlineKeyboardMarkup:
-    """Mahsulotlarni varaqlash (User)"""
-    builder = InlineKeyboardBuilder()
-    
-    # 1. Savatga qo'shish
-    builder.row(InlineKeyboardButton(text="🛒 Savatga qo'shish", callback_data=f"add_cart_{product_id}"))
-    
-    # 2. Navigatsiya
-    nav_buttons = []
-    if current_index > 0:
-        nav_buttons.append(InlineKeyboardButton(text="⬅️", callback_data=f"prod_nav_{category_id}_{current_index - 1}"))
-    
-    nav_buttons.append(InlineKeyboardButton(text=f"{current_index + 1}/{total}", callback_data="current_page"))
-    
-    if current_index < total - 1:
-        nav_buttons.append(InlineKeyboardButton(text="➡️", callback_data=f"prod_nav_{category_id}_{current_index + 1}"))
-    
-    builder.row(*nav_buttons)
-    
-    # 3. Orqaga
-    builder.row(InlineKeyboardButton(text="🔙 Kategoriyalarga", callback_data="back_to_categories"))
-    return builder.as_markup()
-
-def get_product_keyboard(product_id: int, in_cart: bool = False) -> InlineKeyboardMarkup:
-    """Mahsulotni savatga qo'shish tugmasi"""
-    builder = InlineKeyboardBuilder()
-    if in_cart:
-        builder.row(InlineKeyboardButton(text="✅ Savatda", callback_data=f"in_cart_{product_id}"))
-    else:
-        builder.row(InlineKeyboardButton(text="🛒 Savatga qo'shish", callback_data=f"add_cart_{product_id}"))
-    builder.row(InlineKeyboardButton(text="◀️ Orqaga", callback_data="back_to_categories"))
-    return builder.as_markup()
-
-def get_cart_keyboard(cart_items: List[dict]) -> InlineKeyboardMarkup:
-    """Savatni boshqarish"""
-    builder = InlineKeyboardBuilder()
-    for item in cart_items:
-        builder.row(
-            InlineKeyboardButton(text="➖", callback_data=f"cart_minus_{item['id']}"),
-            InlineKeyboardButton(text=f"{item['name']} ({item['quantity']}x)", callback_data=f"cart_item_{item['id']}"),
-            InlineKeyboardButton(text="➕", callback_data=f"cart_plus_{item['id']}"),
-            InlineKeyboardButton(text="🗑", callback_data=f"cart_remove_{item['id']}")
-        )
-    builder.row(InlineKeyboardButton(text="✅ Buyurtmani rasmiylashtirish", callback_data="checkout"))
-    builder.row(InlineKeyboardButton(text="🗑 Savatni tozalash", callback_data="clear_cart"))
-    return builder.as_markup()
-
-def get_empty_cart_keyboard() -> InlineKeyboardMarkup:
-    """Bo'sh savat tugmasi"""
-    builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="🛍 Xarid qilish", callback_data="go_shopping"))
-    return builder.as_markup()
+# Bu qismdagi tugmalar WebAppga ko'chgani sababli bo'sh qoldirildi yoki faqat navigatsiya uchun qisqartirildi
 
 def get_user_orders_navigation(current_index: int, total_orders: int) -> InlineKeyboardMarkup:
-    """Mening buyurtmalarim navigatsiyasi"""
+    """Mening buyurtmalarim navigatsiyasi (Eski tizim qoldig'i)"""
     builder = InlineKeyboardBuilder()
     buttons = []
 
@@ -382,13 +275,6 @@ def get_phone_keyboard() -> ReplyKeyboardMarkup:
 # =========================================================
 # 8. MAXSUS  SHOP 
 # =========================================================
-
-from aiogram.utils.keyboard import InlineKeyboardBuilder
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.types.web_app_info import WebAppInfo
-
-# Sening yangi Vercel sayting manzili
-SHOP_URL = "https://ruslan-shop-brand-s8n3.vercel.app"
 
 def get_buy_button(product_name: str, price: int) -> InlineKeyboardMarkup:
     """Universal WebApp Sotib olish Tugmasi"""
