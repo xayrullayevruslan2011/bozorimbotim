@@ -45,7 +45,7 @@ def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
     
     builder.row(
         KeyboardButton(text="🎓 Online Kurslar"),
-        KeyboardButton(text="🥇 pul ishla ")
+        KeyboardButton(text="📂 Yangi Bo'lim")
     )
     
     builder.row(
