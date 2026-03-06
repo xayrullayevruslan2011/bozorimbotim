@@ -24,7 +24,7 @@ from config import ADMIN_USERNAME
 # LINKLAR
 NASIYA_URL = "https://nasiyaruslan.vercel.app"
 PLATFORM_URL = "https://online-kurs-kmkn.vercel.app/"
-SHOP_URL = "https://ruslan-shop-uz-neon.vercel.app/" # YANGI QO'SHILDI
+SHOP_URL = "https://ruslan-market-uz-ruby.vercel.app/" # YANGI QO'SHILDI
 
 
 # =========================================================
@@ -45,7 +45,7 @@ def get_main_menu(is_admin: bool = False) -> ReplyKeyboardMarkup:
     
     builder.row(
         KeyboardButton(text="🎓 Online Kurslar"),
-        KeyboardButton(text="📂 Yangi Bo'lim")
+        KeyboardButton(text="🥇 pul ishla ")
     )
     
     builder.row(
